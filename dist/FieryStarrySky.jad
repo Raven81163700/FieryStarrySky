@@ -1,0 +1,8 @@
+MIDlet-1: Midlet, , fierystarrysky.Midlet
+MIDlet-Jar-Size: 75794
+MIDlet-Jar-URL: FieryStarrySky.jar
+MIDlet-Name: FieryStarrySky
+MIDlet-Vendor: Vendor
+MIDlet-Version: 1.0
+MicroEdition-Configuration: CLDC-1.1
+MicroEdition-Profile: MIDP-2.1
