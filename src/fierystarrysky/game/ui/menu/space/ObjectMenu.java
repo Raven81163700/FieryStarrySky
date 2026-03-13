@@ -22,7 +22,7 @@ public class ObjectMenu extends BaseMenu {
         super(x, y, width, itemHeight);
         addItem(new MenuItem("环绕", 0));
         addItem(new MenuItem("接近", 1));
-        addItem(new MenuItem("选中", 3));
+        addItem(new MenuItem("锁定", 3));
         addItem(new MenuItem("返回", 2));
         totalHeight = itemHeight * menuItems.size();
 
@@ -41,7 +41,9 @@ public class ObjectMenu extends BaseMenu {
                             try {
                                 float value = Float.parseFloat(text);
                                 canvas.getShipStatus().setTargetObject(object);
+                                canvas.getShipStatus().setLockedObject(object);
                                 canvas.getPlayerMovement().startAutoOrbit(object.getX(), object.getY(), value);
+                                canvas.setStatus("正在环绕 " + object.getDisplayName(), -1, 0);
                             } catch (NumberFormatException e) {
                             }
                         }
@@ -65,7 +67,9 @@ public class ObjectMenu extends BaseMenu {
                             try {
                                 float value = Float.parseFloat(text);
                                 canvas.getShipStatus().setTargetObject(object);
+                                canvas.getShipStatus().setLockedObject(object);
                                 canvas.getPlayerMovement().startAutoApproach(object.getX(), object.getY(), value);
+                                canvas.setStatus("正在接近 " + object.getDisplayName(), -1, 0);
                             } catch (NumberFormatException e) {
                             }
                         }
@@ -82,6 +86,12 @@ public class ObjectMenu extends BaseMenu {
                 break;
             case 2:
                 //停止显示菜单
+                canvas.clearMenu();
+                break;
+            case 3:
+                //菜单操作为“锁定”目标，和点击选中逻辑分离
+                canvas.getShipStatus().setLockedObject(object);
+                canvas.setStatus("已锁定目标 " + object.getDisplayName(), -1, 1500);
                 canvas.clearMenu();
                 break;
         }

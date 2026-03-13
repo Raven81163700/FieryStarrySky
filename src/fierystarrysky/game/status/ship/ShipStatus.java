@@ -38,6 +38,7 @@ public class ShipStatus {
     //玩家设定信息
     private SpaceObject targetObject; //正在自动导航的目标物件
     private SpaceObject selectedObject; //当前选中的目标
+    private SpaceObject lockedObject; //菜单锁定目标（可与 selectedObject 并存）
     //槽位上限设置
     private int mountingSlot; //挂载槽
     private int functionSlot; //功能槽
@@ -75,6 +76,8 @@ public class ShipStatus {
         this.description = shipModel.getDescirption();
 
         shipSlot = new ShipSlot();
+        // initialize mounting slots to the capacity declared by model
+        shipSlot.initMountingSlots(this.mountingSlot);
     }
 
     //getter/setter
@@ -272,5 +275,13 @@ public class ShipStatus {
 
     public void setSelectedObject(SpaceObject object){
         this.selectedObject = object;
+    }
+
+    public SpaceObject getLockedObject() {
+        return this.lockedObject;
+    }
+
+    public void setLockedObject(SpaceObject object) {
+        this.lockedObject = object;
     }
 }

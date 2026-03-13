@@ -85,4 +85,15 @@ public abstract class SpaceObject {
     public abstract void draw(Graphics g, float playerX, float playerY, int screenW, int screenH);
 
     public abstract void onClick(SpaceCanvas canvas, int screenW, int screenH);
+
+    /**
+     * 返回用于界面显示的名称，子类可覆盖
+     */
+    public String getDisplayName() {
+        return "";
+    }
+
+    public int getClickRadius() {
+        return clickRadius;
+    }
 }

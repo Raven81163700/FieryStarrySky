@@ -38,7 +38,13 @@ public class TestTarget extends SpaceObject {
         }
     }
 
+    public String getDisplayName() {
+        return name;
+    }
+
     public void onClick(SpaceCanvas canvas, int screenW, int screenH) {
+        // Keep selection in sync even if menu is opened from other entry points.
+        canvas.getShipStatus().setSelectedObject(this);
         ObjectMenu objectMenu = new ObjectMenu(0, 0, FontUtils.getSmallWidth() * 2 + 16, FontUtils.getMediumHeight() + 8, this);
         objectMenu.setDrawHeader(true);
         objectMenu.setTitle(name);

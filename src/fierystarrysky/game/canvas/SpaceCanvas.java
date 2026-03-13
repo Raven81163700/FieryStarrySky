@@ -1,6 +1,5 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Reconstructed SpaceCanvas with HUD integration and performance/threading improvements.
  */
 package fierystarrysky.game.canvas;
 
@@ -14,9 +13,9 @@ import fierystarrysky.game.object.space.SpaceStation;
 import fierystarrysky.game.object.space.TestTarget;
 import fierystarrysky.game.status.ship.ShipStatus;
 import fierystarrysky.game.status.ship.WeaponStatus;
+import fierystarrysky.game.status.ship.MountingSlotEquipmentStatus;
 import fierystarrysky.game.ui.dialog.BaseDialog;
 import fierystarrysky.game.ui.menu.space.ActionMenu;
-import fierystarrysky.util.ColorUtils;
 import fierystarrysky.util.FontUtils;
 import fierystarrysky.util.RMSUtils;
 import fierystarrysky.util.WorldUtils;
@@ -25,11 +24,9 @@ import javax.microedition.lcdui.*;
 import javax.microedition.lcdui.game.GameCanvas;
 import res.config.loader.ShipInfoLoader;
 import res.image.loader.SpaceDashBoardImageLoader;
+import res.image.loader.ItemCollectionImageLoader;
+import fierystarrysky.game.ui.HUD;
 
-/**
- *
- * @author Raven
- */
 public class SpaceCanvas extends GameCanvas implements Runnable {
 
     private int screenW, screenH;
@@ -51,32 +48,33 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
     private int cachedSmallWidth;
     private int cachedSmallHeight;
     private Font cachedSmallFont;
-    // reuse menu instances to avoid allocations on key press
+    // reuse menu instances
     private CommonMenu commonMenuInstance;
     private ActionMenu actionMenuInstance;
-    private int[] starX1, starY1; // 底层星点
-    private int[] starX2, starY2; // 前景星点
-    private int[] starSize1;        // 星星大小（1~2像素）
-    private int[] starBrightness1;  // 星星亮度（0x88~0xFF）
-    private int starCount1 = 50;  // 底层星点数量
-    private int starCount2 = 15;  // 前景星点数量
-    //dialog列表
+    private int[] starX1, starY1;
+    private int[] starX2, starY2;
+    private int[] starSize1;
+    private int[] starBrightness1;
+    private int starCount1 = 50;
+    private int starCount2 = 15;
     private Vector dialogs = new Vector();
-    //图像加载器
     private SpaceDashBoardImageLoader dashboardRes;
-    // 状态提示框
-    private String statusMessage = null;
-    private float statusDistance = -1f; // 单位：米，<0 表示无距离显示
-    private long statusExpireTime = 0; // 毫秒时间戳，0 表示永久
+    private HUD hud;
+    private ItemCollectionImageLoader itemImgLoader;
+    // collapsible active-module panel (right-bottom, above softkey menu)
+    private boolean modulePanelExpanded = false;
+    private int modulePanelArrowW = 12;
+    private int modulePanelArrowH = 20;
+    private int modulePanelItemH;
+    private int modulePanelW;
 
     public SpaceCanvas(Midlet midlet) {
         super(true);
         this.midlet = midlet;
 
-        //初始化仪表盘图像引用
         dashboardRes = new SpaceDashBoardImageLoader();
+        itemImgLoader = new ItemCollectionImageLoader();
 
-        //初始化左右软键
         String leftKey = RMSUtils.loadRMS("leftSoftKey");
         String rightKey = RMSUtils.loadRMS("rightSoftKey");
         if (leftKey != null) {
@@ -89,11 +87,13 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         screenW = getWidth();
         screenH = getHeight();
 
-        // cache font metrics to avoid repeated calls each frame
+        // cache font metrics
         cachedSmallFont = FontUtils.getSmall();
         cachedSmallWidth = FontUtils.getSmallWidth();
         cachedSmallHeight = FontUtils.getSmallHeight();
         COMMON_MENU_WIDTH = cachedSmallWidth * 6 - 4;
+        modulePanelItemH = cachedSmallHeight + 8;
+        modulePanelW = cachedSmallWidth * 9 + 24;
 
         commonMenuX = screenW - cachedSmallWidth * 4 - 16;
         commonMenuY = screenH - cachedSmallHeight - 4;
@@ -109,6 +109,9 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         shipStatus.getShipSlot().addMountingSlot(testRocketStatus);
         objects.addElement(new SpaceStation(80, 80, 50, "维拉希首星-4 联合工业矿物精炼站"));
         objects.addElement(new TestTarget(-2, 2, 10, "测试标靶"));
+
+        hud = new HUD(shipStatus, shipMovement, dashboardRes, cachedSmallFont, cachedSmallWidth, cachedSmallHeight);
+        HUD.SpaceCanvasCompat.zoomScale = zoomScale;
     }
 
     public void clearMenu() {
@@ -117,20 +120,22 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
     }
 
     protected void pointerPressed(int x, int y) {
+        if (handleModulePanelClick(x, y)) {
+            return;
+        }
+
         if (menuAction) {
             if (currentMenu != null) {
                 int itemIndex = currentMenu.getItemAt(x, y);
                 if (itemIndex == -1) {
                     clearMenu();
                 } else {
-                    //执行点击事件
                     currentMenu.select(this);
                 }
                 return;
             }
             clearMenu();
         }
-        //右下角菜单点击范围
         int actionX = commonMenuX + COMMON_MENU_WIDTH / 2;
         int actionY = commonMenuY;
 
@@ -145,16 +150,24 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         if (x > actionX && x < actionEndX && y > actionY && y < actionEndY) {
             onRightSoftKey();
         }
+        boolean clickedAny = false;
         for (int i = 0; i < objects.size(); i++) {
             SpaceObject obj = (SpaceObject) objects.elementAt(i);
             if (obj.isClicked(x, y, shipMovement.getX(), shipMovement.getY(), screenW, screenH)) {
+                // mark selected object in ship status
+                shipStatus.setSelectedObject(obj);
                 obj.onClick(this, screenW, screenH);
+                clickedAny = true;
+                break;
             }
+        }
+        if (!clickedAny) {
+            shipStatus.setSelectedObject(null);
         }
     }
 
     public void run() {
-        final int targetFrameMs = 20; // target ~50fps (keep original timing)
+        final int targetFrameMs = 20;
         Graphics g = null;
         while (midlet.isRunning()) {
             long frameStart = System.currentTimeMillis();
@@ -162,12 +175,11 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
                 if (g == null) {
                     g = getGraphics();
                 }
-                input();   // 处理输入
-                update();  // 更新逻辑
+                input();
+                update();
                 try {
-                    render(g); // 绘制
+                    render(g);
                 } catch (Throwable t) {
-                    // prevent render exceptions from killing the thread
                     t.printStackTrace();
                 }
                 flushGraphics();
@@ -178,15 +190,12 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
                     try {
                         Thread.sleep(sleepMs);
                     } catch (InterruptedException ie) {
-                        // stop the loop on interrupt
                         break;
                     }
                 } else {
-                    // too slow, yield to allow other threads to run
                     Thread.yield();
                 }
             } catch (Throwable ex) {
-                // top-level catch to avoid silent thread death
                 ex.printStackTrace();
             }
         }
@@ -194,10 +203,8 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
 
     protected void keyPressed(int keyCode) {
         if (keyCode == leftSoftKey) {
-            // 左软键被按下
             onLeftSoftKey();
         } else if (keyCode == rightSoftKey) {
-            // 右软键被按下
             onRightSoftKey();
         }
     }
@@ -267,7 +274,6 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
             }
         }
     }
-    //菜单的硬键盘操作
 
     private void menuPrevious() {
         if (currentMenu != null) {
@@ -294,7 +300,6 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
     }
 
     private void update() {
-        //将移动信息同步到ShipStatus
         shipStatus.setThrottle(shipMovement.getThrottle());
         shipStatus.setCurrentAngle(shipMovement.getCurrentAngle());
         shipStatus.setCurrentX(shipMovement.getX());
@@ -302,91 +307,22 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         shipStatus.setCurrentSpeed(shipMovement.getCurrentSpeed());
 
         long nowTime = System.currentTimeMillis();
-        float deltaTime = (lastTimestamp == 0L ? 0 : (nowTime - lastTimestamp) / 1000f);
+        long deltaMs = (lastTimestamp == 0L ? 0 : (nowTime - lastTimestamp));
+        float deltaTime = deltaMs / 1000f;
         lastTimestamp = nowTime;
 
         shipMovement.update(deltaTime);
-
+        updateActiveModules(deltaMs);
+        hud.update(deltaTime);
     }
 
     private void render(Graphics g) {
         drawBackground(g);
         drawObject(g);
         drawPlayer(g);
-        drawShipInterface(g);
-        drawStatusBox(g);
+        hud.render(g, screenW, screenH);
         drawMenu(g);
-    }
-
-    // 状态提示框（底部正中）
-    private void drawStatusBox(Graphics g) {
-        // 检查是否过期
-        if (statusMessage == null) return;
-        if (statusExpireTime > 0 && System.currentTimeMillis() > statusExpireTime) {
-            statusMessage = null;
-            statusDistance = -1f;
-            statusExpireTime = 0;
-            return;
-        }
-
-        String text = statusMessage;
-        if (statusDistance >= 0f) {
-            text = text + " " + formatDistance(statusDistance);
-        }
-
-        Font f = (cachedSmallFont != null) ? cachedSmallFont : FontUtils.getSmall();
-        int fh = (cachedSmallHeight > 0) ? cachedSmallHeight : FontUtils.getSmallHeight();
-        g.setFont(f);
-
-        int paddingX = 6;
-        int paddingY = 4;
-        int textWidth = FontUtils.getSmallWidth() * text.length();
-        int boxW = textWidth + paddingX * 2;
-        int boxH = fh + paddingY * 2;
-
-        int centerX = screenW / 2;
-        int x = centerX - boxW / 2;
-        int y = screenH - boxH - 6; // 6px 上偏移，位于底部上方
-
-        // 背景
-        g.setColor(0x333333);
-        g.fillRoundRect(x, y, boxW, boxH, 6, 6);
-        // 边框
-        g.setColor(0xFFFFFF);
-        g.drawRoundRect(x, y, boxW, boxH, 6, 6);
-        // 文本
-        g.setColor(0xFFFFFF);
-        int tx = x + paddingX;
-        int ty = y + paddingY;
-        g.drawString(text, tx, ty, Graphics.LEFT | Graphics.TOP);
-    }
-
-    private String formatDistance(float meters) {
-        if (meters < 1000f) {
-            return ((int) meters) + "m";
-        } else {
-            float km = meters / 1000f;
-            int whole = (int) km;
-            int dec = (int) ((km - whole) * 10);
-            return whole + "." + dec + "km";
-        }
-    }
-
-    // 公共设置接口：message 文字，distance 米（<0 表示不显示），duration 毫秒（<=0 表示永久）
-    public void setStatus(String message, float distance, int durationMs) {
-        this.statusMessage = message;
-        this.statusDistance = distance;
-        if (durationMs > 0) {
-            this.statusExpireTime = System.currentTimeMillis() + durationMs;
-        } else {
-            this.statusExpireTime = 0;
-        }
-    }
-
-    public void clearStatus() {
-        this.statusMessage = null;
-        this.statusDistance = -1f;
-        this.statusExpireTime = 0;
+        drawModulePanel(g);
     }
 
     private void initStars() {
@@ -406,22 +342,15 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         for (int i = 0; i < starCount2; i++) {
             starX2[i] = rand.nextInt(screenW);
             starY2[i] = rand.nextInt(screenH);
-            // 星星大小：1 或 2 像素
             starSize1[i] = 1 + rand.nextInt(2);
-
-            // 星星亮度：0x88~0xFF，越亮越接近白色
             starBrightness1[i] = 0x88 + rand.nextInt(0x77);
         }
     }
 
     private void drawBackground(Graphics g) {
-        // 填充黑色背景
         g.setColor(0x000000);
         g.fillRect(0, 0, screenW, screenH);
 
-        // ---------------------
-        // 底层背景板（远处，不动）
-        // ---------------------
         for (int i = 0; i < starCount1; i++) {
             int brightness = starBrightness1[i];
             int color = (brightness << 16) | (brightness << 8) | brightness;
@@ -429,12 +358,8 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
             g.fillRect(starX1[i], starY1[i], starSize1[i], starSize1[i]);
         }
 
-        // ---------------------
-        // 前景星层（随移动，视差效果）
-        // ---------------------
         g.setColor(0xFFFFFF);
         float parallax = 0.5f * zoomScale;
-        // cache movement values to avoid repeated method calls
         float shipX = shipMovement.getX();
         float shipYscreen = WorldUtils.worldToScreen(shipMovement.getY());
 
@@ -442,29 +367,21 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
             int x = (int) (starX2[i] - shipX * parallax) % screenW;
             int y = (int) ((starY2[i] - shipYscreen * parallax) % screenH);
 
-            if (x < 0) {
-                x += screenW;
-            }
-            if (y < 0) {
-                y += screenH;
-            }
+            if (x < 0) x += screenW;
+            if (y < 0) y += screenH;
 
             g.fillRect(x, y, 3, 3);
         }
     }
 
-    // 玩家始终在屏幕中心
     private void drawPlayer(Graphics g) {
-        // 飞船中心点
         int cx = screenW / 2;
         int cy = screenH / 2;
 
-        // 绘制船体（红色方块）
         g.setColor(0xFF0000);
         g.fillRect(cx - 3, cy - 3, 6, 6);
 
-        // 船头方向（灰色短线）
-        float angle = shipMovement.getCurrentAngle(); // float
+        float angle = shipMovement.getCurrentAngle();
         double rad = angle * Math.PI / 180.0;
         double cos = Math.cos(rad);
         double sin = Math.sin(rad);
@@ -472,7 +389,7 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         int hy = cy + (int) (WorldUtils.worldToScreen((float) (sin * screenH / 20.0)));
         g.setColor(0xaaaaaa);
         g.drawLine(cx, cy, hx, hy);
-        // 船头目标方向（白色短线）
+
         float targetAngle = shipMovement.getTargetAngle();
         double targetRad = targetAngle * Math.PI / 180.0;
         double targetCos = Math.cos(targetRad);
@@ -482,24 +399,45 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         g.setColor(0xFFFFFF);
         g.drawLine(cx, cy, targetHx, targetHy);
     }
-    //绘制物品
 
     private void drawObject(Graphics g) {
         for (int i = 0; i < objects.size(); i++) {
             SpaceObject obj = (SpaceObject) objects.elementAt(i);
             obj.setScale(zoomScale);
             obj.draw(g, shipMovement.getX(), shipMovement.getY(), screenW, screenH);
+            int sx = obj.toScreenX(shipMovement.getX(), screenW);
+            int sy = obj.toScreenY(shipMovement.getY(), screenH);
+            int cr = obj.getClickRadius();
+
+            // yellow: click-selected object
+            if (obj == shipStatus.getSelectedObject()) {
+                g.setColor(0xFFFF00);
+                g.drawArc(sx - cr - 2, sy - cr - 2, (cr + 2) * 2, (cr + 2) * 2, 0, 360);
+                g.drawArc(sx - cr - 4, sy - cr - 4, (cr + 4) * 2, (cr + 4) * 2, 0, 360);
+
+                g.setFont(FontUtils.getSmall());
+                String name = obj.getDisplayName();
+                if (name == null || name.length() == 0) {
+                    name = "目标";
+                }
+                g.drawString(name, sx, sy - cr - 8, Graphics.HCENTER | Graphics.BOTTOM);
+            }
+
+            // red: menu-locked object (can coexist with yellow selection)
+            if (obj == shipStatus.getLockedObject()) {
+                g.setColor(0xFF3333);
+                g.drawArc(sx - cr - 7, sy - cr - 7, (cr + 7) * 2, (cr + 7) * 2, 0, 360);
+                g.drawArc(sx - cr - 9, sy - cr - 9, (cr + 9) * 2, (cr + 9) * 2, 0, 360);
+            }
         }
     }
 
     private void drawMenu(Graphics g) {
-        //绘制默认菜单
         g.setFont(cachedSmallFont);
         String menuText = "菜单";
         String actionText = "操作";
         int menuHeight = cachedSmallHeight;
         int menuWidth = cachedSmallWidth * 4;
-        //从右下角开始
         g.setColor(0xAAAAAA);
         int startX = screenW - menuWidth - 16;
         int startY = screenH - menuHeight - 4;
@@ -512,140 +450,236 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
             menuAction = true;
         }
     }
-    //绘制舰船仪表盘
 
-    private void drawShipInterface(Graphics g) {
-        //如果在环绕，绘制环绕航路
-        if (shipMovement.getMode() == ShipMovement.AUTO_ORBIT) {
-            g.setColor(ColorUtils.grayBlue);
-            int radius = (int) (shipMovement.getTargetDistance() * zoomScale);
-            g.drawArc(shipStatus.getTargetObject().toScreenX(shipMovement.getX(), screenW) - radius, shipStatus.getTargetObject().toScreenY(shipMovement.getY(), screenH) - radius, radius * 2, radius * 2, 0, 360);
-            radius -= 1;
-            g.drawArc(shipStatus.getTargetObject().toScreenX(shipMovement.getX(), screenW) - radius, shipStatus.getTargetObject().toScreenY(shipMovement.getY(), screenH) - radius, radius * 2, radius * 2, 0, 360);
-        }
-
-
-        //求出绘图点
-        int drawX, drawY;
-        //速度表盘边框绘图点
-        int fontHeight = cachedSmallHeight + 4;
-        //屏幕自适应大小
-        int dashboardSize = (int) (screenW * 0.25f);
-        drawX = 0 - dashboardSize;
-        drawY = screenH - dashboardSize - fontHeight;
-        //护盾和装甲 
-        //边框
-        g.setColor(ColorUtils.sliverGray);
-        g.fillArc(drawX, drawY, dashboardSize * 2, dashboardSize * 2, 0, 90);
-        //状态条背景色
-        g.setColor(ColorUtils.ironGray);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 0, 90);
-        //TODO:计算装甲值和护盾值的弧度
-        g.setColor(ColorUtils.shieldBlue);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 45, 45);
-        g.setColor(ColorUtils.armorGray);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 0, 45);
-
-        //偏移，绘制电力
-        drawX += 8;
-        drawY += 8;
-        dashboardSize -= 8;
-        //电力边框
-        g.setColor(ColorUtils.sliverGray);
-        g.fillArc(drawX, drawY, dashboardSize * 2, dashboardSize * 2, 0, 90);
-        //状态条背景
-        g.setColor(ColorUtils.ironGray);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 0, 90);
-        //结构
-        g.setColor(ColorUtils.deepRed);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 45, 45);
-        //电力
-        g.setColor(ColorUtils.powerYellow);
-        //TODO 根据百分比求0-45角度
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 0, 45);
-        //绘制速度仪表盘
-        g.setColor(ColorUtils.sliverGray);
-        drawX += 7;
-        drawY += 7;
-        dashboardSize -= 7;
-        g.fillArc(drawX, drawY, dashboardSize * 2, dashboardSize * 2, 0, 90);
-        g.setColor(ColorUtils.grayBlue);
-        g.fillArc(drawX + 1, drawY + 1, dashboardSize * 2 - 2, dashboardSize * 2 - 2, 0, 90);
-        float throttle = shipStatus.getThrottle() / 100f;
-        //电力图标绘制于指针之下
-        g.drawImage(dashboardRes.getPowerIcon(), dashboardSize - 16, screenH - fontHeight, Graphics.BOTTOM | Graphics.LEFT);
-        g.drawImage(dashboardRes.getArmorIcon(), dashboardSize + 16, screenH - fontHeight, Graphics.BOTTOM | Graphics.LEFT);
-        g.drawImage(dashboardRes.getShieldIcon(), 0, screenH - fontHeight - dashboardSize - 15, Graphics.BOTTOM | Graphics.LEFT);
-        g.drawImage(dashboardRes.getStructureIcon(), 0, screenH - fontHeight - dashboardSize + 4, Graphics.TOP | Graphics.LEFT);
-        //根据百分比在仪表盘定指针
-        int pointerX = 0 + (int) (dashboardSize * 0.8 * Math.sin(Math.toRadians(85 * throttle)));
-        int pointerY = screenH - fontHeight - (int) (dashboardSize * 0.8 * Math.cos(Math.toRadians(85 * throttle)));
-        g.setColor(ColorUtils.fluorescentGreen);
-        g.drawLine(0, screenH - fontHeight, pointerX, pointerY);
-        float currentSpeed = shipStatus.getCurrentSpeed();
-        float speedPercent = currentSpeed / shipStatus.getMaxSpeed();
-        pointerX = 0 + (int) (dashboardSize * 0.6 * Math.sin(Math.toRadians(85 * speedPercent)));
-        pointerY = screenH - fontHeight - (int) (dashboardSize * 0.6 * Math.cos(Math.toRadians(85 * speedPercent)));
-        g.setColor(ColorUtils.orangeRed);
-        g.drawLine(0, screenH - fontHeight, pointerX, pointerY);
-        g.drawLine(0 - 1, screenH - fontHeight, pointerX - 1, pointerY);
-        g.drawLine(0 + 1, screenH - fontHeight, pointerX + 1, pointerY);
-        //速度条
-        String speedString = String.valueOf((int) (currentSpeed * 1000));
-        String speedText = speedString + "m/s";
-        int speedWidth = cachedSmallWidth * 5;
-        g.setColor(ColorUtils.white);
-        if (speedWidth < dashboardSize + 16){
-            speedWidth = dashboardSize + 16;
-        }
-        g.fillRect(0, screenH - fontHeight, speedWidth, fontHeight);
-        g.setColor(ColorUtils.black);
-        g.fillRect(1, screenH - fontHeight + 1, speedWidth - 2, fontHeight - 2);
-        g.setColor(ColorUtils.white);
-        pointerY = screenH - fontHeight / 2 - cachedSmallHeight / 2;
-        g.drawString(speedText, speedWidth / 2, pointerY, Graphics.HCENTER | Graphics.TOP);
-
-        if (dialogs.isEmpty()) {
+    private void updateActiveModules(long deltaMs) {
+        if (deltaMs <= 0) {
             return;
         }
-        //绘制弹窗
-        BaseDialog dialog = (BaseDialog) dialogs.elementAt(0);
-        if (!dialog.isShow() && dialog.getType() == BaseDialog.TYPE_INFO) {
-            dialog.setCreateTime(System.currentTimeMillis());
-            dialog.setShow(true);
+        Vector slots = shipStatus.getShipSlot().getMoutingSlots();
+        for (int i = 0; i < slots.size(); i++) {
+            MountingSlotEquipmentStatus st = (MountingSlotEquipmentStatus) slots.elementAt(i);
+            if (st != null) {
+                st.update(deltaMs);
+            }
         }
-        if (dialog.isClosed()) {
-            dialogs.removeElementAt(0);
+    }
+
+    private void drawModulePanel(Graphics g) {
+        int menuHeight = cachedSmallHeight + 4;
+        int menuWidth = cachedSmallWidth * 4 + 16;
+        int menuStartX = screenW - menuWidth - 16;
+        int menuStartY = screenH - menuHeight - 4;
+
+        int anchorY = menuStartY - 8;
+        // arrow sits flush to right screen edge (use same calc for drawing and hit-testing)
+        int arrowX = screenW - modulePanelArrowW - 2;
+        int arrowY = anchorY - modulePanelArrowH;
+
+        Vector active = collectActiveModules();
+
+        // if panel is not expanded, only draw the arrow and return
+        if (!modulePanelExpanded) {
+            g.setColor(0x666666);
+            g.fillRoundRect(arrowX, arrowY, modulePanelArrowW, modulePanelArrowH, 4, 4);
+            g.setColor(0xFFFFFF);
+            g.drawString(modulePanelExpanded ? "<" : ">", arrowX + modulePanelArrowW / 2, arrowY + 2, Graphics.HCENTER | Graphics.TOP);
+            return;
         }
-        dialog.draw(g, screenW, screenH);
+
+        // if expanded but no active modules, still draw arrow and an empty panel background
+        if (active.size() == 0) {
+            int panelH = 4;
+            int panelX = screenW - modulePanelW - 4;
+            int panelY = anchorY - panelH;
+            g.setColor(0x222222);
+            g.fillRoundRect(panelX, panelY, modulePanelW, panelH, 6, 6);
+            g.setColor(0xFFFFFF);
+            g.drawRoundRect(panelX, panelY, modulePanelW, panelH, 6, 6);
+
+            g.setColor(0x666666);
+            g.fillRoundRect(arrowX, arrowY, modulePanelArrowW, modulePanelArrowH, 4, 4);
+            g.setColor(0xFFFFFF);
+            g.drawString(modulePanelExpanded ? "<" : ">", arrowX + modulePanelArrowW / 2, arrowY + 2, Graphics.HCENTER | Graphics.TOP);
+            return;
+        }
+
+        int panelH = active.size() * modulePanelItemH + 4;
+        int panelX = screenW - modulePanelW - 4;
+        int panelY = anchorY - panelH;
+
+        g.setColor(0x222222);
+        g.fillRoundRect(panelX, panelY, modulePanelW, panelH, 6, 6);
+        g.setColor(0xFFFFFF);
+        g.drawRoundRect(panelX, panelY, modulePanelW, panelH, 6, 6);
+
+        g.setFont(cachedSmallFont);
+        for (int i = 0; i < active.size(); i++) {
+            MountingSlotEquipmentStatus st = (MountingSlotEquipmentStatus) active.elementAt(i);
+            int rowY = panelY + 2 + i * modulePanelItemH;
+            g.setColor(0x333333);
+            g.fillRect(panelX + 2, rowY, modulePanelW - 4, modulePanelItemH - 1);
+
+            // draw icon if available
+            int iconX = panelX + 6;
+            int iconY = rowY + 2;
+            int iconSize = modulePanelItemH - 4;
+            if (st.getModel() != null && st.getModel().getItemId() != null) {
+                try {
+                    javax.microedition.lcdui.Image img = itemImgLoader.getItemImage(st.getModel().getItemId());
+                    if (img != null) {
+                        // draw image (may be larger; draw at iconX,iconY)
+                        g.drawImage(img, iconX, rowY + (modulePanelItemH - img.getHeight()) / 2, Graphics.LEFT | Graphics.TOP);
+                    }
+                } catch (Throwable t) {
+                }
+            }
+
+            String name = st.getModel() == null ? "模块" : st.getModel().getName();
+            if (name == null || name.length() == 0) {
+                name = "模块";
+            }
+            if (name.length() > 12) {
+                name = name.substring(0, 12);
+            }
+            g.setColor(0xFFFFFF);
+            int textX = panelX + 6 + iconSize + 6;
+            g.drawString((i + 1) + "." + name, textX, rowY + 2, Graphics.LEFT | Graphics.TOP);
+
+            int cx = panelX + modulePanelW - 14;
+            int cy = rowY + modulePanelItemH / 2;
+            int r = 6;
+            g.setColor(0x777777);
+            g.drawArc(cx - r, cy - r, r * 2, r * 2, 0, 360);
+
+            if (!st.isReady()) {
+                // compute remaining fraction and progress consistently
+                float cooldownFrac = 0f;
+                long finalCd = st.getFinalCooldown();
+                if (finalCd > 0) {
+                    cooldownFrac = (float) st.getCooldownTimer() / (float) finalCd; // 1 -> just fired; 0 -> ready
+                }
+                int remainAngle = (int) (360f * cooldownFrac);
+                g.setColor(0xFF8800);
+                // draw remaining arc from top (90) clockwise by remainAngle
+                g.drawArc(cx - r, cy - r, r * 2, r * 2, 90, -remainAngle);
+
+                // pointer at the edge of remaining arc (end angle = 90 - remainAngle)
+                int pointerAngle = 90 - remainAngle;
+                double rad = Math.toRadians(pointerAngle);
+                int px = cx + (int) (Math.cos(rad) * r);
+                int py = cy + (int) (Math.sin(rad) * r);
+                g.drawLine(cx, cy, px, py);
+            } else {
+                g.setColor(0x66FF66);
+                g.fillArc(cx - 2, cy - 2, 4, 4, 0, 360);
+            }
+        }
+        // draw arrow on top so it's always visible and clickable
+        g.setColor(0x666666);
+        g.fillRoundRect(arrowX, arrowY, modulePanelArrowW, modulePanelArrowH, 4, 4);
+        g.setColor(0xFFFFFF);
+        g.drawString(modulePanelExpanded ? "<" : ">", arrowX + modulePanelArrowW / 2, arrowY + 2, Graphics.HCENTER | Graphics.TOP);
     }
 
-    //getter/setter
-    public BaseMenu getCurrentMenu() {
-        return currentMenu;
+    private boolean handleModulePanelClick(int x, int y) {
+        int menuHeight = cachedSmallHeight + 4;
+        int menuWidth = cachedSmallWidth * 4 + 16;
+        int menuStartX = screenW - menuWidth - 16;
+        int menuStartY = screenH - menuHeight - 4;
+
+        int anchorY = menuStartY - 8;
+        int arrowX = screenW - modulePanelArrowW - 2;
+        int arrowY = anchorY - modulePanelArrowH;
+
+        if (x >= arrowX && x <= arrowX + modulePanelArrowW && y >= arrowY && y <= arrowY + modulePanelArrowH) {
+            modulePanelExpanded = !modulePanelExpanded;
+            return true;
+        }
+
+        if (!modulePanelExpanded) {
+            return false;
+        }
+
+        Vector active = collectActiveModules();
+        if (active.size() == 0) {
+            return false;
+        }
+
+        int panelH = active.size() * modulePanelItemH + 4;
+        int panelX = screenW - modulePanelW - 4;
+        int panelY = anchorY - panelH;
+
+        if (!(x >= panelX && x <= panelX + modulePanelW && y >= panelY && y <= panelY + panelH)) {
+            return false;
+        }
+
+        int relY = y - (panelY + 2);
+        if (relY < 0) {
+            return true;
+        }
+        int index = relY / modulePanelItemH;
+        if (index < 0 || index >= active.size()) {
+            return true;
+        }
+
+        MountingSlotEquipmentStatus st = (MountingSlotEquipmentStatus) active.elementAt(index);
+        if (st.tryFire()) {
+            String name = st.getModel() == null ? "模块" : st.getModel().getName();
+            if (name == null || name.length() == 0) {
+                name = "模块";
+            }
+            float distanceMeters = -1f;
+            SpaceObject target = shipStatus.getLockedObject();
+            if (target == null) {
+                target = shipStatus.getSelectedObject();
+            }
+            if (target != null) {
+                float dx = target.getX() - shipMovement.getX();
+                float dy = target.getY() - shipMovement.getY();
+                distanceMeters = (float) Math.sqrt(dx * dx + dy * dy) * 1000f;
+            }
+            setStatus("开火 " + name, distanceMeters, 1000);
+        } else {
+            setStatus("冷却中", -1, 800);
+        }
+
+        return true;
     }
 
-    public void setCurrentMenu(BaseMenu menu) {
-        currentMenu = menu;
+    private Vector collectActiveModules() {
+        Vector active = new Vector();
+        Vector slots = shipStatus.getShipSlot().getMoutingSlots();
+        for (int i = 0; i < slots.size(); i++) {
+            MountingSlotEquipmentStatus st = (MountingSlotEquipmentStatus) slots.elementAt(i);
+            if (st != null) {
+                // prepare image resource if model provides icon URI
+                try {
+                    if (st.getModel() != null && st.getModel().getIcon() != null) {
+                        itemImgLoader.prepareResources(st.getModel().getItemId(), st.getModel().getIcon());
+                    }
+                } catch (Throwable t) {}
+                active.addElement(st);
+            }
+        }
+        return active;
     }
 
-    public boolean getMenuAction() {
-        return menuAction;
+    // getters/setters
+    public BaseMenu getCurrentMenu() { return currentMenu; }
+    public void setCurrentMenu(BaseMenu menu) { currentMenu = menu; }
+    public boolean getMenuAction() { return menuAction; }
+    public void setMenuAction(boolean bool) { menuAction = bool; }
+    public ShipMovement getPlayerMovement() { return shipMovement; }
+    public ShipStatus getShipStatus() { return shipStatus; }
+    public void addDialog(BaseDialog dialog) { dialogs.addElement(dialog); }
+
+    // HUD status controls
+    public void setStatus(String message, float distance, int durationMs) {
+        if (hud != null) hud.setStatus(message, distance, durationMs);
     }
 
-    public void setMenuAction(boolean bool) {
-        menuAction = bool;
+    public void clearStatus() {
+        if (hud != null) hud.clearStatus();
     }
 
-    public ShipMovement getPlayerMovement() {
-        return shipMovement;
-    }
-
-    public ShipStatus getShipStatus() {
-        return shipStatus;
-    }
-
-    public void addDialog(BaseDialog dialog) {
-        dialogs.addElement(dialog);
-    }
 }

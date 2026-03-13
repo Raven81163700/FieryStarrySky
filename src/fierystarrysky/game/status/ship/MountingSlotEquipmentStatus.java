@@ -46,7 +46,26 @@ public class MountingSlotEquipmentStatus {
 
     // getter
     public float getCooldownProgress() {
-        return 1f - (cooldownTimer / finalCooldown); // 0~1 进度条
+        if (finalCooldown <= 0) {
+            return 1f;
+        }
+        return 1f - ((float) cooldownTimer / (float) finalCooldown); // 0~1 进度条
+    }
+
+    public boolean isReady() {
+        return cooldownTimer <= 0;
+    }
+
+    public MountingSlotEquipmentModel getModel() {
+        return model;
+    }
+
+    public long getCooldownTimer() {
+        return cooldownTimer;
+    }
+
+    public long getFinalCooldown() {
+        return finalCooldown;
     }
 
     public int getAmmoNum() {

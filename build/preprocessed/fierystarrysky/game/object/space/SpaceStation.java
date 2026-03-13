@@ -40,11 +40,17 @@ public class SpaceStation extends SpaceObject {
     }
     
     public void onClick(SpaceCanvas canvas, int screenW, int screenH){
+        // Keep selection in sync even if menu is opened from other entry points.
+        canvas.getShipStatus().setSelectedObject(this);
         ObjectMenu objectMenu = new ObjectMenu(0, 0, FontUtils.getSmallWidth() * 2 + 16, FontUtils.getMediumHeight() + 8, this);
         objectMenu.setDrawHeader(true);
         objectMenu.setTitle(name);
         objectMenu.setHeaderH(FontUtils.getSmallHeight() + 8);
         objectMenu.setHeaderW(FontUtils.getSmallWidth() * name.length() + 8);
         canvas.setCurrentMenu(objectMenu);
+    }
+
+    public String getDisplayName() {
+        return name;
     }
 }
