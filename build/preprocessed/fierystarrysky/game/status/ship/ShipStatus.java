@@ -37,6 +37,7 @@ public class ShipStatus {
     private float currentSpeed; //当前速度
     //玩家设定信息
     private SpaceObject targetObject; //正在自动导航的目标物件
+    private SpaceObject selectedObject; //当前选中的目标
     //槽位上限设置
     private int mountingSlot; //挂载槽
     private int functionSlot; //功能槽
@@ -263,5 +264,13 @@ public class ShipStatus {
     
     public void setDescription(String description){
         this.description = description;
+    }
+
+    public SpaceObject getSelectedObject(){
+        return this.selectedObject;
+    }
+
+    public void setSelectedObject(SpaceObject object){
+        this.selectedObject = object;
     }
 }

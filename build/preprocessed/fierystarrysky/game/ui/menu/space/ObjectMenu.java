@@ -22,6 +22,7 @@ public class ObjectMenu extends BaseMenu {
         super(x, y, width, itemHeight);
         addItem(new MenuItem("环绕", 0));
         addItem(new MenuItem("接近", 1));
+        addItem(new MenuItem("选中", 3));
         addItem(new MenuItem("返回", 2));
         totalHeight = itemHeight * menuItems.size();
 

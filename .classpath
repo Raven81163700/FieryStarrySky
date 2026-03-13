@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+    <classpathentry kind="src" path="src"/>
+    <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+    <classpathentry kind="lib" path="D:/Java_ME_platform_SDK_3.4/lib/midp_2.0.jar">
+        <attributes>
+            <attribute name="javadoc_location" value="lib/javame/javadoc/midp-2.0/"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="lib" path="D:/Java_ME_platform_SDK_3.4/lib/cldc_1.1.jar">
+        <attributes>
+            <attribute name="javadoc_location" value="lib/javame/javadoc/cldc-1.1/"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="lib" path="D:/Java_ME_platform_SDK_3.4/lib/jsr135_1.2.jar">
+        <attributes>
+            <attribute name="javadoc_location" value="lib/javame/javadoc/jsr135/"/>
+        </attributes>
+    </classpathentry>
+    <classpathentry kind="lib" path="D:/Java_ME_platform_SDK_3.4/lib/jsr172_1.0.jar">
+        <attributes>
+            <attribute name="javadoc_location" value="lib/javame/javadoc/jsr172/"/>
+        </attributes>
+    </classpathentry>
+    <!-- fallback: include SDK lib folder so other jars are available -->
+    <classpathentry kind="lib" path="D:/Java_ME_platform_SDK_3.4/lib/"/>
+    <classpathentry kind="output" path="build"/>
+</classpath>

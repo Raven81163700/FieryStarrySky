@@ -12,14 +12,12 @@ import fierystarrysky.model.item.WeaponModel;
 import fierystarrysky.game.object.SpaceObject;
 import fierystarrysky.game.object.space.SpaceStation;
 import fierystarrysky.game.object.space.TestTarget;
-import fierystarrysky.game.status.PlayerStatus;
 import fierystarrysky.game.status.ship.ShipStatus;
 import fierystarrysky.game.status.ship.WeaponStatus;
 import fierystarrysky.game.ui.dialog.BaseDialog;
 import fierystarrysky.game.ui.menu.space.ActionMenu;
 import fierystarrysky.util.ColorUtils;
 import fierystarrysky.util.FontUtils;
-import fierystarrysky.util.MathUtils;
 import fierystarrysky.util.RMSUtils;
 import fierystarrysky.util.WorldUtils;
 import java.util.Vector;
@@ -36,7 +34,6 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
 
     private int screenW, screenH;
     private ShipMovement shipMovement;
-    private PlayerStatus playerStatus;
     private ShipStatus shipStatus;
     private Vector objects = new Vector();
     private long lastTimestamp = 0L;
@@ -50,7 +47,13 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
     public static float zoomScale = 10;
     private int commonMenuX;
     private int commonMenuY;
-    private int COMMON_MENU_WIDTH = FontUtils.getSmallWidth() * 6 - 4;
+    private int COMMON_MENU_WIDTH;
+    private int cachedSmallWidth;
+    private int cachedSmallHeight;
+    private Font cachedSmallFont;
+    // reuse menu instances to avoid allocations on key press
+    private CommonMenu commonMenuInstance;
+    private ActionMenu actionMenuInstance;
     private int[] starX1, starY1; // 底层星点
     private int[] starX2, starY2; // 前景星点
     private int[] starSize1;        // 星星大小（1~2像素）
@@ -82,8 +85,14 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         screenW = getWidth();
         screenH = getHeight();
 
-        commonMenuX = screenW - FontUtils.getSmallWidth() * 4 - 16;
-        commonMenuY = screenH - FontUtils.getSmallHeight() - 4;
+        // cache font metrics to avoid repeated calls each frame
+        cachedSmallFont = FontUtils.getSmall();
+        cachedSmallWidth = FontUtils.getSmallWidth();
+        cachedSmallHeight = FontUtils.getSmallHeight();
+        COMMON_MENU_WIDTH = cachedSmallWidth * 6 - 4;
+
+        commonMenuX = screenW - cachedSmallWidth * 4 - 16;
+        commonMenuY = screenH - cachedSmallHeight - 4;
 
         initStars();
         ShipInfoLoader shipInfoLoader = new ShipInfoLoader("b096ea75-4ecf-4c17-9c9b-35660a8e7435");
@@ -141,17 +150,40 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
     }
 
     public void run() {
-        Graphics g = getGraphics();
-
+        final int targetFrameMs = 20; // target ~50fps (keep original timing)
+        Graphics g = null;
         while (midlet.isRunning()) {
-            input();   // 处理输入
-            update();  // 更新逻辑
-            render(g); // 绘制
-            flushGraphics();
-
+            long frameStart = System.currentTimeMillis();
             try {
-                Thread.sleep(20); // ~20fps
-            } catch (InterruptedException e) {
+                if (g == null) {
+                    g = getGraphics();
+                }
+                input();   // 处理输入
+                update();  // 更新逻辑
+                try {
+                    render(g); // 绘制
+                } catch (Throwable t) {
+                    // prevent render exceptions from killing the thread
+                    t.printStackTrace();
+                }
+                flushGraphics();
+
+                long elapsed = System.currentTimeMillis() - frameStart;
+                long sleepMs = targetFrameMs - elapsed;
+                if (sleepMs > 0) {
+                    try {
+                        Thread.sleep(sleepMs);
+                    } catch (InterruptedException ie) {
+                        // stop the loop on interrupt
+                        break;
+                    }
+                } else {
+                    // too slow, yield to allow other threads to run
+                    Thread.yield();
+                }
+            } catch (Throwable ex) {
+                // top-level catch to avoid silent thread death
+                ex.printStackTrace();
             }
         }
     }
@@ -171,16 +203,22 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
             clearMenu();
         } else {
             menuAction = true;
-            currentMenu = new CommonMenu(commonMenuX, commonMenuY, COMMON_MENU_WIDTH, FontUtils.getSmallHeight() + 8);
+            if (commonMenuInstance == null) {
+                commonMenuInstance = new CommonMenu(commonMenuX, commonMenuY, COMMON_MENU_WIDTH, cachedSmallHeight + 8);
+            }
+            currentMenu = commonMenuInstance;
         }
     }
 
     private void onRightSoftKey() {
         if (menuAction && currentMenu != null) {
             clearMenu();
-        }else{
+        } else {
             menuAction = true;
-            currentMenu = new ActionMenu(commonMenuX, commonMenuY, COMMON_MENU_WIDTH, FontUtils.getSmallHeight() + 8);
+            if (actionMenuInstance == null) {
+                actionMenuInstance = new ActionMenu(commonMenuX, commonMenuY, COMMON_MENU_WIDTH, cachedSmallHeight + 8);
+            }
+            currentMenu = actionMenuInstance;
         }
     }
 
@@ -320,12 +358,14 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         // ---------------------
         g.setColor(0xFFFFFF);
         float parallax = 0.5f * zoomScale;
+        // cache movement values to avoid repeated method calls
+        float shipX = shipMovement.getX();
+        float shipYscreen = WorldUtils.worldToScreen(shipMovement.getY());
 
         for (int i = 0; i < starCount2; i++) {
-            int x = (int) (starX2[i] - shipMovement.getX() * parallax) % screenW;
-            int y = (int) ((starY2[i] - WorldUtils.worldToScreen(shipMovement.getY()) * parallax) % screenH);
+            int x = (int) (starX2[i] - shipX * parallax) % screenW;
+            int y = (int) ((starY2[i] - shipYscreen * parallax) % screenH);
 
-            // 保证坐标正数（避免负数）
             if (x < 0) {
                 x += screenW;
             }
@@ -349,16 +389,20 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
 
         // 船头方向（灰色短线）
         float angle = shipMovement.getCurrentAngle(); // float
-        double rad = Math.toRadians(angle);     // 转成弧度
-        int hx = cx + (int) (Math.cos(rad) * screenH / 20.0);
-        int hy = cy + (int) (WorldUtils.worldToScreen((float) (Math.sin(rad) * screenH / 20.0)));
+        double rad = angle * Math.PI / 180.0;
+        double cos = Math.cos(rad);
+        double sin = Math.sin(rad);
+        int hx = cx + (int) (cos * screenH / 20.0);
+        int hy = cy + (int) (WorldUtils.worldToScreen((float) (sin * screenH / 20.0)));
         g.setColor(0xaaaaaa);
         g.drawLine(cx, cy, hx, hy);
         // 船头目标方向（白色短线）
         float targetAngle = shipMovement.getTargetAngle();
-        double targetRad = Math.toRadians(targetAngle);
-        int targetHx = cx + (int) (Math.cos(targetRad) * screenH / 15);
-        int targetHy = cy + (int) (WorldUtils.worldToScreen((float) (Math.sin(targetRad) * screenH / 15)));
+        double targetRad = targetAngle * Math.PI / 180.0;
+        double targetCos = Math.cos(targetRad);
+        double targetSin = Math.sin(targetRad);
+        int targetHx = cx + (int) (targetCos * screenH / 15);
+        int targetHy = cy + (int) (WorldUtils.worldToScreen((float) (targetSin * screenH / 15)));
         g.setColor(0xFFFFFF);
         g.drawLine(cx, cy, targetHx, targetHy);
     }
@@ -374,11 +418,11 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
 
     private void drawMenu(Graphics g) {
         //绘制默认菜单
-        g.setFont(FontUtils.getSmall());
+        g.setFont(cachedSmallFont);
         String menuText = "菜单";
         String actionText = "操作";
-        int menuHeight = FontUtils.getSmallHeight();
-        int menuWidth = FontUtils.getSmallWidth() * 4;
+        int menuHeight = cachedSmallHeight;
+        int menuWidth = cachedSmallWidth * 4;
         //从右下角开始
         g.setColor(0xAAAAAA);
         int startX = screenW - menuWidth - 16;
@@ -396,7 +440,7 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
 
     private void drawShipInterface(Graphics g) {
         //如果在环绕，绘制环绕航路
-        if (shipMovement.getMode() == shipMovement.AUTO_ORBIT) {
+        if (shipMovement.getMode() == ShipMovement.AUTO_ORBIT) {
             g.setColor(ColorUtils.grayBlue);
             int radius = (int) (shipMovement.getTargetDistance() * zoomScale);
             g.drawArc(shipStatus.getTargetObject().toScreenX(shipMovement.getX(), screenW) - radius, shipStatus.getTargetObject().toScreenY(shipMovement.getY(), screenH) - radius, radius * 2, radius * 2, 0, 360);
@@ -408,7 +452,7 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         //求出绘图点
         int drawX, drawY;
         //速度表盘边框绘图点
-        int fontHeight = FontUtils.getSmallHeight() + 4;
+        int fontHeight = cachedSmallHeight + 4;
         //屏幕自适应大小
         int dashboardSize = (int) (screenW * 0.25f);
         drawX = 0 - dashboardSize;
@@ -473,7 +517,7 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         //速度条
         String speedString = String.valueOf((int) (currentSpeed * 1000));
         String speedText = speedString + "m/s";
-        int speedWidth = FontUtils.getSmallWidth() * 5;
+        int speedWidth = cachedSmallWidth * 5;
         g.setColor(ColorUtils.white);
         if (speedWidth < dashboardSize + 16){
             speedWidth = dashboardSize + 16;
@@ -482,7 +526,7 @@ public class SpaceCanvas extends GameCanvas implements Runnable {
         g.setColor(ColorUtils.black);
         g.fillRect(1, screenH - fontHeight + 1, speedWidth - 2, fontHeight - 2);
         g.setColor(ColorUtils.white);
-        pointerY = screenH - fontHeight / 2 - FontUtils.getSmallHeight() / 2;
+        pointerY = screenH - fontHeight / 2 - cachedSmallHeight / 2;
         g.drawString(speedText, speedWidth / 2, pointerY, Graphics.HCENTER | Graphics.TOP);
 
         if (dialogs.isEmpty()) {
