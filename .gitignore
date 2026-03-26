@@ -1,0 +1,16 @@
+# 忽略构建产物，保留SDK内嵌文件
+
+# 构建中间产物
+client/build/
+client/dist/
+
+# IDE文件
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db

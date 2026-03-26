@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Aurora Online Game - JavaME Client Build Script
+  
+  依赖:
+    - JDK 1.7  (javac, jar)
+    - tools/preverify.exe (从JavaME SDK 3.4提取, 无需安装SDK)
+    - client/lib/*.jar (从JavaME SDK 3.4提取)
+  
+  用法:
+    ant compile     - 编译源码
+    ant preverify   - 预验证字节码 (JavaME必须步骤)
+    ant package     - 打包JAR + 生成JAD描述文件
+    ant all         - 执行以上所有步骤
+    ant clean       - 清理构建产物
+    ant run         - 在模拟器中运行 (需要本地安装SDK)
+-->
+<project name="AuroraGameClient" default="all" basedir=".">
+
+    <!-- ==================== 路径配置 ==================== -->
+    <!-- JDK路径 -->
+    <property name="jdk.home"         value="C:\Program Files\Java\jdk1.7.0_40"/>
+    <!-- JavaME SDK路径 (可选, 仅用于run目标) -->
+    <property name="me.sdk.home"      value="D:\Java_ME_platform_SDK_3.4"/>
+    <!-- preverify工具 (已内嵌到tools目录, 无需安装SDK) -->
+    <property name="preverify.exe"    value="${basedir}\..\tools\preverify.exe"/>
+
+    <!-- ==================== 项目配置 ==================== -->
+    <property name="src.dir"          value="${basedir}/src"/>
+    <property name="res.dir"          value="${basedir}/res"/>
+    <property name="lib.dir"          value="${basedir}/lib"/>
+    <property name="build.dir"        value="${basedir}/build"/>
+    <property name="classes.dir"      value="${build.dir}/classes"/>
+    <property name="preverified.dir"  value="${build.dir}/preverified"/>
+    <property name="dist.dir"         value="${basedir}/dist"/>
+
+    <!-- ==================== 应用信息 ==================== -->
+    <property name="app.name"         value="AuroraGame"/>
+    <property name="app.version"      value="1.0.0"/>
+    <property name="app.vendor"       value="Aurora Studio"/>
+    <property name="midlet.class"     value="com.aurora.game.AuroraGameMIDlet"/>
+    <property name="jar.name"         value="${app.name}-${app.version}.jar"/>
+    <property name="jad.name"         value="${app.name}-${app.version}.jad"/>
+    <property name="server.host"      value="127.0.0.1"/>
+    <property name="server.port"      value="9000"/>
+
+    <!-- ==================== JavaME规范配置 ==================== -->
+    <!-- CLDC + MIDP版本 -->
+    <property name="midp.version"     value="MIDP-2.1"/>
+    <property name="cldc.version"     value="CLDC-1.1"/>
+
+    <!-- ==================== Classpath ==================== -->
+    <!-- 编译时只需要MIDP + CLDC JAR -->
+    <path id="compile.classpath">
+        <fileset dir="${lib.dir}">
+            <include name="midp_2.1.jar"/>
+            <include name="cldc_1.1.jar"/>
+        </fileset>
+    </path>
+
+    <!-- ==================== 目标 ==================== -->
+
+    <target name="init" description="创建构建目录">
+        <mkdir dir="${classes.dir}"/>
+        <mkdir dir="${preverified.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+    </target>
+
+    <target name="clean" description="清理所有构建产物">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+        <echo>清理完成</echo>
+    </target>
+
+    <target name="compile" depends="init" description="编译JavaME源码">
+        <javac
+            executable="${jdk.home}/bin/javac"
+            fork="true"
+            srcdir="${src.dir}"
+            destdir="${classes.dir}"
+            source="1.3"
+            target="1.3"
+            encoding="UTF-8"
+            debug="false"
+            optimize="true">
+            <classpath refid="compile.classpath"/>
+        </javac>
+        <echo>编译完成 -> ${classes.dir}</echo>
+    </target>
+
+    <target name="preverify" depends="compile" description="JavaME字节码预验证 (使用内嵌preverify.exe)">
+        <!--
+            preverify是JavaME/CLDC的必须步骤
+            将标准Java字节码转换为经过预验证的CLDC字节码
+            使用项目内tools/preverify.exe, 无需安装SDK
+        -->
+        <exec executable="${preverify.exe}" failonerror="true">
+            <arg value="-classpath"/>
+            <arg value="${lib.dir}/midp_2.1.jar;${lib.dir}/cldc_1.1.jar"/>
+            <arg value="-d"/>
+            <arg value="${preverified.dir}"/>
+            <arg value="${classes.dir}"/>
+        </exec>
+        <echo>预验证完成 -> ${preverified.dir}</echo>
+    </target>
+
+    <target name="package" depends="preverify" description="打包JAR并生成JAD">
+        <!-- 打包JAR -->
+        <jar destfile="${dist.dir}/${jar.name}" basedir="${preverified.dir}">
+            <!-- 资源文件 -->
+            <fileset dir="${res.dir}" erroronmissingdir="false">
+                <include name="**/*"/>
+            </fileset>
+            <manifest>
+                <attribute name="MIDlet-1"            value="${app.name}, , ${midlet.class}"/>
+                <attribute name="MIDlet-Name"         value="${app.name}"/>
+                <attribute name="MIDlet-Version"      value="${app.version}"/>
+                <attribute name="MIDlet-Vendor"       value="${app.vendor}"/>
+                <attribute name="MicroEdition-Profile"   value="${midp.version}"/>
+                <attribute name="MicroEdition-Configuration" value="${cldc.version}"/>
+                <attribute name="Aurora-Server-Host" value="${server.host}"/>
+                <attribute name="Aurora-Server-Port" value="${server.port}"/>
+            </manifest>
+        </jar>
+
+        <!-- 计算JAR大小用于JAD -->
+        <length file="${dist.dir}/${jar.name}" property="jar.size"/>
+
+        <!-- 生成JAD描述文件 -->
+        <echo file="${dist.dir}/${jad.name}">MIDlet-1: ${app.name}, , ${midlet.class}
+MIDlet-Name: ${app.name}
+MIDlet-Version: ${app.version}
+MIDlet-Vendor: ${app.vendor}
+MIDlet-Jar-URL: ${jar.name}
+MIDlet-Jar-Size: ${jar.size}
+MicroEdition-Profile: ${midp.version}
+MicroEdition-Configuration: ${cldc.version}
+Aurora-Server-Host: ${server.host}
+Aurora-Server-Port: ${server.port}
+</echo>
+        <echo>打包完成 -> ${dist.dir}/${jar.name}</echo>
+        <echo>JAD文件  -> ${dist.dir}/${jad.name}</echo>
+    </target>
+
+    <target name="all" depends="clean, package" description="完整构建流程"/>
+
+    <!-- 需要本地安装SDK才能使用此目标 -->
+    <target name="run" depends="package" description="在JavaME模拟器中运行 (需要本地安装SDK)">
+        <exec executable="${me.sdk.home}/bin/emulator.exe" failonerror="true">
+            <arg value="-Xdescriptor:${dist.dir}/${jad.name}"/>
+        </exec>
+    </target>
+
+</project>
