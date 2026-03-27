@@ -64,6 +64,43 @@ body {
 	background: #0b1330;
 }
 
+.map-label-system {
+	fill: #fff59d;
+	font-size: 10px;
+	font-weight: 700;
+	text-anchor: middle;
+	dominant-baseline: central;
+	stroke: #0a1020;
+	stroke-width: 1.6px;
+	paint-order: stroke;
+}
+
+.map-label-constellation {
+	fill: #ffd180;
+	font-size: 13px;
+	font-weight: 700;
+	text-anchor: middle;
+	dominant-baseline: central;
+	stroke: #0a1020;
+	stroke-width: 2px;
+	paint-order: stroke;
+}
+
+.map-label-domain {
+	fill: #84ffff;
+	font-size: 16px;
+	font-weight: 700;
+	text-anchor: middle;
+	dominant-baseline: central;
+	stroke: #0a1020;
+	stroke-width: 2.2px;
+	paint-order: stroke;
+}
+
+.map-label-layer {
+	pointer-events: none;
+}
+
 .side-panel {
 	display: flex;
 	flex-direction: column;
@@ -147,6 +184,30 @@ body {
 	overflow: auto;
 	border-color: #345184 !important;
 	background: rgba(10, 20, 40, 0.5) !important;
+}
+
+.embedded-panels {
+	background: transparent !important;
+}
+
+.embedded-panels .v-expansion-panel {
+	background: rgba(19, 34, 65, 0.55) !important;
+	border-bottom: 1px solid rgba(94, 126, 186, 0.32);
+}
+
+.panel-row-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #e5eeff;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.folded-line {
+	font-size: 12px;
+	color: #b9c8e6;
+	margin-bottom: 4px;
 }
 
 .list-title,

@@ -8,10 +8,100 @@
       "security": 0.8,
       "controller": "",
       "description": ""
+    },
+    {
+      "id": 2,
+      "name": "星系-2",
+      "x": 552,
+      "y": 96,
+      "security": 0.8,
+      "controller": "",
+      "description": ""
+    },
+    {
+      "id": 3,
+      "name": "星系-3",
+      "x": 576,
+      "y": 168,
+      "security": 0.8,
+      "controller": "",
+      "description": ""
+    },
+    {
+      "id": 4,
+      "name": "星系-4",
+      "x": 672,
+      "y": 168,
+      "security": 0.8,
+      "controller": "",
+      "description": ""
+    },
+    {
+      "id": 5,
+      "name": "星系-5",
+      "x": 840,
+      "y": 144,
+      "security": 0.8,
+      "controller": "",
+      "description": ""
     }
   ],
-  "links": [],
+  "links": [
+    {
+      "from_id": 2,
+      "to_id": 1,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 3,
+      "to_id": 4,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 2,
+      "to_id": 4,
+      "link_type": 2,
+      "cost": 1
+    }
+  ],
   "bodies": [],
-  "constellations": [],
-  "domains": []
+  "constellations": [
+    {
+      "id": 1,
+      "name": "星座-1",
+      "controller": "",
+      "description": "",
+      "color": "#ff9800",
+      "systemIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": 2,
+      "name": "星座-2",
+      "controller": "",
+      "description": "",
+      "color": "#ff9800",
+      "systemIds": [
+        4,
+        3
+      ]
+    }
+  ],
+  "domains": [
+    {
+      "id": 1,
+      "name": "星域-1",
+      "controller": "",
+      "description": "",
+      "color": "rgba(0,200,255,0.35)",
+      "constellationIds": [
+        2,
+        1
+      ]
+    }
+  ]
 }

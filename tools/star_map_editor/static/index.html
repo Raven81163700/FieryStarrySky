@@ -23,6 +23,9 @@
             <v-btn size="small" :color="mode==='link' ? 'primary' : 'default'" variant="flat" @click="setMode('link')">连接星门</v-btn>
             <v-btn size="small" :color="mode==='selectSystems' ? 'primary' : 'default'" variant="flat" @click="setMode('selectSystems')">选择星系</v-btn>
             <v-btn size="small" :color="mode==='selectConstellations' ? 'primary' : 'default'" variant="flat" @click="setMode('selectConstellations')">选择星座</v-btn>
+            <v-btn size="small" :disabled="!canToggleGate" :color="hasGateBetweenSelected ? 'warning' : 'primary'" variant="flat" @click="toggleGateBetweenSelected">
+              {{ hasGateBetweenSelected ? '移除星门' : '创建星门' }}
+            </v-btn>
           </div>
 
           <div class="toolbar-group mr-2">
@@ -46,7 +49,7 @@
             <div class="editor-layout">
               <div class="map-panel">
                 <div class="hint-line">
-                  当前模式: {{ modeLabel }}。拖动星系可改坐标；长按后拖动可平移画面；缩放请使用顶部按钮等步长控制。
+                  当前模式: {{ modeLabel }}。星系/星座选中统一为单击切换；拖动星系可改坐标；长按后拖动可平移画面。
                 </div>
                 <div ref="scrollRef" class="map-scroll">
                   <svg
@@ -68,17 +71,29 @@
                         <line :x1="0" :y1="(y-1)*gridSize" :x2="mapWidth" :y2="(y-1)*gridSize" stroke="#1f2e4f" stroke-width="0.6" />
                       </g>
 
-                      <g v-for="c in constellations" :key="'const-'+c.id">
-                        <rect
-                          v-for="cell in constellationCells(c)"
-                          :key="'const-cell-'+c.id+'-'+cell.k"
-                          :x="cell.x"
-                          :y="cell.y"
-                          :width="gridSize"
-                          :height="gridSize"
-                          :fill="c.color || '#ffa726'"
-                          opacity="0.35"
-                        ></rect>
+                      <g v-for="c in constellations" :key="'const-link-'+c.id">
+                        <line
+                          v-for="edge in constellationLinks(c)"
+                          :key="'const-link-'+c.id+'-'+edge.k"
+                          :x1="edge.x1"
+                          :y1="edge.y1"
+                          :x2="edge.x2"
+                          :y2="edge.y2"
+                          :stroke="c.color || '#ffa726'"
+                          stroke-width="3"
+                          stroke-opacity="0.95"
+                        ></line>
+                        <circle
+                          v-for="sid in c.systemIds"
+                          :key="'const-sys-'+c.id+'-'+sid"
+                          :cx="systemById(sid).x"
+                          :cy="systemById(sid).y"
+                          r="13"
+                          fill="none"
+                          :stroke="c.color || '#ffa726'"
+                          stroke-width="2.4"
+                          stroke-opacity="0.95"
+                        ></circle>
                       </g>
 
                       <g v-for="d in domains" :key="'dom-'+d.id">
@@ -90,7 +105,27 @@
                           :width="gridSize"
                           :height="gridSize"
                           :fill="d.color || 'rgba(0,200,255,0.35)'"
-                          opacity="0.28"
+                          :opacity="domainCellOpacity(d, cell, 'core')"
+                        ></rect>
+                        <rect
+                          v-for="cell in domainBufferCells(d, 1)"
+                          :key="'dom-buffer1-'+d.id+'-'+cell.k"
+                          :x="cell.x"
+                          :y="cell.y"
+                          :width="gridSize"
+                          :height="gridSize"
+                          :fill="d.color || 'rgba(0,200,255,0.35)'"
+                          :opacity="domainCellOpacity(d, cell, 'buffer1')"
+                        ></rect>
+                        <rect
+                          v-for="cell in domainBufferCells(d, 2)"
+                          :key="'dom-buffer2-'+d.id+'-'+cell.k"
+                          :x="cell.x"
+                          :y="cell.y"
+                          :width="gridSize"
+                          :height="gridSize"
+                          :fill="d.color || 'rgba(0,200,255,0.35)'"
+                          :opacity="domainCellOpacity(d, cell, 'buffer2')"
                         ></rect>
                         <line
                           v-for="edge in domainEdges(d)"
@@ -119,11 +154,10 @@
                         <circle
                           :cx="s.x"
                           :cy="s.y"
-                          :r="selectedSystemId===s.id ? 11 : 9"
-                          :fill="selectedSystemIds.includes(s.id) ? '#c8e6c9' : (selectedSystemId===s.id ? '#fff59d' : '#eceff1')"
+                          :r="activeSystemId===s.id ? 11 : 9"
+                          :fill="selectedSystemIds.includes(s.id) ? (activeSystemId===s.id ? '#a5d6a7' : '#c8e6c9') : '#eceff1'"
                           stroke="#111"
                         ></circle>
-                        <text :x="s.x+12" :y="s.y+4" font-size="12" fill="#f8f9fa">{{ s.name }}</text>
                       </g>
 
                       <rect
@@ -136,6 +170,36 @@
                         stroke="#64b5f6"
                         stroke-dasharray="4,4"
                       ></rect>
+
+                      <g class="map-label-layer">
+                        <text
+                          v-for="item in labelLayout.systems"
+                          :key="'sys-name-'+item.id"
+                          :x="item.x"
+                          :y="item.y"
+                          class="map-label-system"
+                        >
+                          {{ item.name }}
+                        </text>
+                        <text
+                          v-for="item in labelLayout.constellations"
+                          :key="'const-name-'+item.id"
+                          :x="item.x"
+                          :y="item.y"
+                          class="map-label-constellation"
+                        >
+                          {{ item.name }}
+                        </text>
+                        <text
+                          v-for="item in labelLayout.domains"
+                          :key="'dom-name-'+item.id"
+                          :x="item.x"
+                          :y="item.y"
+                          class="map-label-domain"
+                        >
+                          {{ item.name }}
+                        </text>
+                      </g>
                     </g>
                   </svg>
                 </div>
@@ -195,23 +259,21 @@
                     <span class="selected-count">已选星系: {{ selectedSystemIds.length }}</span>
                   </div>
                   <v-sheet class="embedded-list" rounded="lg" border>
-                    <v-list density="compact" nav>
-                      <v-list-item
-                        v-for="c in constellations"
-                        :key="'list-c-'+c.id"
-                        :active="selectedConstellationIds.includes(c.id)"
-                        color="primary"
-                        @click="toggleConstellationSelection(c.id)"
-                      >
-                        <template #prepend>
-                          <v-icon size="18" :color="selectedConstellationIds.includes(c.id) ? 'success' : 'medium-emphasis'">
-                            {{ selectedConstellationIds.includes(c.id) ? 'mdi-check-circle' : 'mdi-circle-outline' }}
-                          </v-icon>
-                        </template>
-                        <v-list-item-title class="list-title">{{ c.id }}. {{ c.name }}</v-list-item-title>
-                        <v-list-item-subtitle class="list-subtitle">势力 {{ c.controller || '未设置' }}</v-list-item-subtitle>
-                      </v-list-item>
-                    </v-list>
+                    <v-expansion-panels multiple variant="accordion" class="embedded-panels">
+                      <v-expansion-panel v-for="c in constellations" :key="'c-panel-'+c.id">
+                        <v-expansion-panel-title>
+                          <div class="panel-row-title">{{ c.id }}. {{ c.name }}</div>
+                          <v-chip size="x-small" class="ml-2" :color="selectedConstellationIds.includes(c.id) ? 'success' : 'default'" variant="tonal">
+                            {{ selectedConstellationIds.includes(c.id) ? '已选' : '未选' }}
+                          </v-chip>
+                        </v-expansion-panel-title>
+                        <v-expansion-panel-text>
+                          <div class="folded-line">势力: {{ c.controller || '未设置' }}</div>
+                          <div class="folded-line">包含星系: {{ (c.systemIds || []).length }} 个</div>
+                          <v-btn size="x-small" variant="tonal" color="primary" @click="toggleConstellationSelection(c.id)">切换选中</v-btn>
+                        </v-expansion-panel-text>
+                      </v-expansion-panel>
+                    </v-expansion-panels>
                   </v-sheet>
                   <div v-if="selectedConstellation" class="mt-2">
                     <v-text-field v-model="selectedConstellation.name" label="命名" density="compact" @change="emitState"></v-text-field>
@@ -228,12 +290,21 @@
                     <span class="selected-count">已选星座: {{ selectedConstellationIds.length }}</span>
                   </div>
                   <v-sheet class="embedded-list" rounded="lg" border>
-                    <v-list density="compact" nav>
-                      <v-list-item v-for="d in domains" :key="'list-d-'+d.id" :active="selectedDomainId===d.id" color="primary" @click="pickDomain(d.id)">
-                        <v-list-item-title class="list-title">{{ d.id }}. {{ d.name }}</v-list-item-title>
-                        <v-list-item-subtitle class="list-subtitle">势力 {{ d.controller || '未设置' }}</v-list-item-subtitle>
-                      </v-list-item>
-                    </v-list>
+                    <v-expansion-panels multiple variant="accordion" class="embedded-panels">
+                      <v-expansion-panel v-for="d in domains" :key="'d-panel-'+d.id">
+                        <v-expansion-panel-title @click.stop="pickDomain(d.id)">
+                          <div class="panel-row-title">{{ d.id }}. {{ d.name }}</div>
+                          <v-chip size="x-small" class="ml-2" :color="selectedDomainId===d.id ? 'primary' : 'default'" variant="tonal">
+                            {{ selectedDomainId===d.id ? '当前' : '可选' }}
+                          </v-chip>
+                        </v-expansion-panel-title>
+                        <v-expansion-panel-text>
+                          <div class="folded-line">势力: {{ d.controller || '未设置' }}</div>
+                          <div class="folded-line">包含星座: {{ (d.constellationIds || []).length }} 个</div>
+                          <v-btn size="x-small" variant="tonal" color="primary" @click="pickDomain(d.id)">设为当前</v-btn>
+                        </v-expansion-panel-text>
+                      </v-expansion-panel>
+                    </v-expansion-panels>
                   </v-sheet>
                   <div v-if="selectedDomain" class="mt-2">
                     <v-text-field v-model="selectedDomain.name" label="命名" density="compact" @change="emitState"></v-text-field>
@@ -309,9 +380,9 @@
           const constellations = reactive([]);
           const domains = reactive([]);
 
-          const selectedSystemId = ref(null);
+          const activeSystemId = ref(null);
           const selectedSystemIds = reactive([]);
-          const selectedConstellationId = ref(null);
+          const activeConstellationId = ref(null);
           const selectedConstellationIds = ref([]);
           const selectedDomainId = ref(null);
 
@@ -354,6 +425,25 @@
           const gridRowCount = computed(() => Math.ceil(mapHeight.value / gridSize));
           const viewTransform = computed(() => `translate(${panX.value} ${panY.value}) scale(${zoom.value})`);
           const zoomPercent = computed(() => Math.round(zoom.value * 100));
+          const labelLayout = computed(() => buildLabelLayout());
+          const selectedGatePair = computed(() => {
+            if (selectedSystemIds.length !== 2) return null;
+            const a = Number(selectedSystemIds[0]);
+            const b = Number(selectedSystemIds[1]);
+            if (!a || !b || a === b) return null;
+            return [a, b];
+          });
+          const hasGateBetweenSelected = computed(() => {
+            if (!selectedGatePair.value) return false;
+            const a = selectedGatePair.value[0];
+            const b = selectedGatePair.value[1];
+            return links.some(
+              (l) =>
+                Number(l.link_type) === 2 &&
+                ((l.from_id === a && l.to_id === b) || (l.from_id === b && l.to_id === a))
+            );
+          });
+          const canToggleGate = computed(() => selectedGatePair.value !== null);
           const modeLabel = computed(() => {
             if (mode.value === 'create') return '创建星系';
             if (mode.value === 'link') return '连接星门';
@@ -362,8 +452,18 @@
             return '未知模式';
           });
 
-          const selectedSystem = computed(() => systems.find((s) => s.id === selectedSystemId.value) || null);
-          const selectedConstellation = computed(() => constellations.find((c) => c.id === selectedConstellationId.value) || null);
+          const selectedSystem = computed(() => {
+            const fallback = selectedSystemIds.length > 0 ? selectedSystemIds[selectedSystemIds.length - 1] : null;
+            const id = activeSystemId.value || fallback;
+            return systems.find((s) => s.id === id) || null;
+          });
+          const selectedConstellation = computed(() => {
+            const fallback = selectedConstellationIds.value.length > 0
+              ? selectedConstellationIds.value[selectedConstellationIds.value.length - 1]
+              : null;
+            const id = activeConstellationId.value || fallback;
+            return constellations.find((c) => c.id === id) || null;
+          });
           const selectedDomain = computed(() => domains.find((d) => d.id === selectedDomainId.value) || null);
 
           function showTip(text) {
@@ -442,6 +542,14 @@
 
             selectedSystemIds.splice(0, selectedSystemIds.length, ...selectedSystemIds.filter((id) => systems.some((s) => s.id === id)));
             selectedConstellationIds.value = selectedConstellationIds.value.filter((id) => constellations.some((c) => c.id === id));
+            if (activeSystemId.value && !systems.some((s) => s.id === activeSystemId.value)) {
+              activeSystemId.value = selectedSystemIds.length > 0 ? selectedSystemIds[selectedSystemIds.length - 1] : null;
+            }
+            if (activeConstellationId.value && !constellations.some((c) => c.id === activeConstellationId.value)) {
+              activeConstellationId.value = selectedConstellationIds.value.length > 0
+                ? selectedConstellationIds.value[selectedConstellationIds.value.length - 1]
+                : null;
+            }
           }
 
           function buildPayload() {
@@ -563,6 +671,11 @@
               showTip('请先在“选择星系”模式中框选或点选多个星系。');
               return;
             }
+            const usedSystemIds = systemsAlreadyInConstellations(selectedSystemIds);
+            if (usedSystemIds.length > 0) {
+              showTip('防呆: 已归属星座的星系不能再与其他星系新建星座。');
+              return;
+            }
             dialog.type = 'constellation';
             dialog.title = '创建星座';
             dialog.form.name = `星座-${nextConstellationId}`;
@@ -576,6 +689,11 @@
             const picked = selectedConstellationIds.value;
             if (!picked || picked.length === 0) {
               showTip('请先选择一个或多个星座。');
+              return;
+            }
+            const usedConstellationIds = constellationsAlreadyInDomains(picked);
+            if (usedConstellationIds.length > 0) {
+              showTip('防呆: 已归属星域的星座不能再与其他星座新建星域。');
               return;
             }
             dialog.type = 'domain';
@@ -604,12 +722,18 @@
                 description: dialog.form.description || '',
               };
               systems.push(item);
-              selectedSystemId.value = item.id;
+              selectedSystemIds.splice(0, selectedSystemIds.length, item.id);
+              activeSystemId.value = item.id;
               ensureMapBounds(item.x, item.y);
               emitState();
             }
 
             if (dialog.type === 'constellation') {
+              const usedSystemIds = systemsAlreadyInConstellations(selectedSystemIds);
+              if (usedSystemIds.length > 0) {
+                showTip('防呆: 已归属星座的星系不能重复用于新建星座。');
+                return;
+              }
               const item = {
                 id: nextConstellationId++,
                 name: dialog.form.name.trim(),
@@ -619,12 +743,17 @@
                 systemIds: [...selectedSystemIds],
               };
               constellations.push(item);
-              selectedConstellationId.value = item.id;
-              selectedSystemIds.splice(0, selectedSystemIds.length);
+              selectedConstellationIds.value = [item.id];
+              activeConstellationId.value = item.id;
               emitState();
             }
 
             if (dialog.type === 'domain') {
+              const usedConstellationIds = constellationsAlreadyInDomains(selectedConstellationIds.value);
+              if (usedConstellationIds.length > 0) {
+                showTip('防呆: 已归属星域的星座不能重复用于新建星域。');
+                return;
+              }
               const item = {
                 id: nextDomainId++,
                 name: dialog.form.name.trim(),
@@ -642,17 +771,23 @@
           }
 
           function pickSystem(id) {
-            selectedSystemId.value = id;
+            activeSystemId.value = id;
           }
 
           function toggleSystemSelection(id) {
             const idx = selectedSystemIds.indexOf(id);
-            if (idx >= 0) selectedSystemIds.splice(idx, 1);
-            else selectedSystemIds.push(id);
+            if (idx >= 0) {
+              selectedSystemIds.splice(idx, 1);
+              if (activeSystemId.value === id) {
+                activeSystemId.value = selectedSystemIds.length > 0 ? selectedSystemIds[selectedSystemIds.length - 1] : null;
+              }
+            } else {
+              selectedSystemIds.push(id);
+              activeSystemId.value = id;
+            }
           }
 
           function toggleSystemSelectionFromList(id) {
-            selectedSystemId.value = id;
             toggleSystemSelection(id);
           }
 
@@ -667,7 +802,9 @@
               c.systemIds = (c.systemIds || []).filter((sid) => sid !== id);
             });
             selectedSystemIds.splice(0, selectedSystemIds.length, ...selectedSystemIds.filter((sid) => sid !== id));
-            if (selectedSystemId.value === id) selectedSystemId.value = null;
+            if (activeSystemId.value === id) {
+              activeSystemId.value = selectedSystemIds.length > 0 ? selectedSystemIds[selectedSystemIds.length - 1] : null;
+            }
             emitState();
           }
 
@@ -678,18 +815,69 @@
           }
 
           function pickConstellation(id) {
-            selectedConstellationId.value = id;
+            activeConstellationId.value = id;
           }
 
           function toggleConstellationSelection(id) {
-            selectedConstellationId.value = id;
             const idx = selectedConstellationIds.value.indexOf(id);
-            if (idx >= 0) selectedConstellationIds.value.splice(idx, 1);
-            else selectedConstellationIds.value.push(id);
+            if (idx >= 0) {
+              selectedConstellationIds.value.splice(idx, 1);
+              if (activeConstellationId.value === id) {
+                const last = selectedConstellationIds.value.length > 0
+                  ? selectedConstellationIds.value[selectedConstellationIds.value.length - 1]
+                  : null;
+                activeConstellationId.value = last;
+              }
+            } else {
+              selectedConstellationIds.value.push(id);
+              activeConstellationId.value = id;
+            }
           }
 
           function pickDomain(id) {
             selectedDomainId.value = id;
+          }
+
+          function systemsAlreadyInConstellations(systemIds) {
+            const used = new Set();
+            const source = Array.isArray(systemIds) ? systemIds : [];
+            constellations.forEach((c) => {
+              (c.systemIds || []).forEach((sid) => {
+                if (source.includes(sid)) used.add(sid);
+              });
+            });
+            return Array.from(used.values());
+          }
+
+          function constellationsAlreadyInDomains(constellationIds) {
+            const used = new Set();
+            const source = Array.isArray(constellationIds) ? constellationIds : [];
+            domains.forEach((d) => {
+              (d.constellationIds || []).forEach((cid) => {
+                if (source.includes(cid)) used.add(cid);
+              });
+            });
+            return Array.from(used.values());
+          }
+
+          function toggleGateBetweenSelected() {
+            if (!selectedGatePair.value) {
+              showTip('请先选中两个星系。');
+              return;
+            }
+            const a = selectedGatePair.value[0];
+            const b = selectedGatePair.value[1];
+            const idx = links.findIndex(
+              (l) =>
+                Number(l.link_type) === 2 &&
+                ((l.from_id === a && l.to_id === b) || (l.from_id === b && l.to_id === a))
+            );
+            if (idx >= 0) {
+              links.splice(idx, 1);
+            } else {
+              links.push({ from_id: a, to_id: b, link_type: 2, cost: 1 });
+            }
+            emitState();
           }
 
           function constellationCells(constellation) {
@@ -711,6 +899,31 @@
             return cells;
           }
 
+          function constellationLinks(constellation) {
+            if (!constellation || !Array.isArray(constellation.systemIds)) return [];
+            const set = new Set(constellation.systemIds);
+            return links
+              .filter((l) => set.has(l.from_id) && set.has(l.to_id))
+              .map((l) => ({
+                x1: systemById(l.from_id).x,
+                y1: systemById(l.from_id).y,
+                x2: systemById(l.to_id).x,
+                y2: systemById(l.to_id).y,
+                k: `${l.from_id}-${l.to_id}`,
+              }));
+          }
+
+          function constellationLabel(constellation) {
+            if (!constellation || !Array.isArray(constellation.systemIds) || constellation.systemIds.length === 0) return null;
+            const pts = constellation.systemIds
+              .map((id) => systemById(id))
+              .filter((s) => Number.isFinite(s.x) && Number.isFinite(s.y));
+            if (pts.length === 0) return null;
+            const sx = pts.reduce((acc, p) => acc + p.x, 0);
+            const sy = pts.reduce((acc, p) => acc + p.y, 0);
+            return { x: sx / pts.length, y: sy / pts.length };
+          }
+
           function domainCells(domain) {
             if (!domain || !Array.isArray(domain.constellationIds)) return [];
             const cellMap = new Map();
@@ -720,6 +933,65 @@
               constellationCells(c).forEach((cell) => cellMap.set(cell.k, cell));
             });
             return Array.from(cellMap.values());
+          }
+
+          function domainBufferCells(domain, ring) {
+            const core = domainCells(domain);
+            if (core.length === 0 || ring < 1) return [];
+            const coreMap = new Map();
+            core.forEach((c) => coreMap.set(c.k, c));
+            const out = new Map();
+            const dirs = [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+            ];
+            let frontier = core.map((c) => ({ gx: c.gx, gy: c.gy }));
+            const visited = new Set(frontier.map((p) => `${p.gx},${p.gy}`));
+
+            for (let step = 1; step <= ring; step++) {
+              const next = [];
+              frontier.forEach((p) => {
+                dirs.forEach((dxy) => {
+                  const gx = p.gx + dxy[0];
+                  const gy = p.gy + dxy[1];
+                  const key = `${gx},${gy}`;
+                  if (visited.has(key)) return;
+                  visited.add(key);
+                  if (!coreMap.has(key)) {
+                    next.push({ gx, gy, k: key, x: gx * gridSize, y: gy * gridSize });
+                  }
+                });
+              });
+              if (step === ring) {
+                next.forEach((c) => out.set(c.k, c));
+              }
+              frontier = next;
+            }
+            return Array.from(out.values());
+          }
+
+          function domainCellOpacity(domain, cell, layer) {
+            const floorMap = { core: 0.26, buffer1: 0.16, buffer2: 0.12 };
+            const baseMap = { core: 0.30, buffer1: 0.18, buffer2: 0.13 };
+            const floor = floorMap[layer] || 0.12;
+            const base = baseMap[layer] || 0.12;
+            if (!cell) return floor;
+
+            const core = domainCells(domain);
+            const coreSet = new Set(core.map((c) => c.k));
+            const neigh = [
+              `${cell.gx + 1},${cell.gy}`,
+              `${cell.gx - 1},${cell.gy}`,
+              `${cell.gx},${cell.gy + 1}`,
+              `${cell.gx},${cell.gy - 1}`,
+            ];
+            const denseCount = neigh.filter((k) => coreSet.has(k)).length;
+
+            // Sparse edge cells get a small boost so domain visibility never drops too low.
+            const sparseBoost = denseCount <= 1 ? 0.06 : denseCount === 2 ? 0.03 : 0;
+            return Math.max(floor, Math.min(0.5, base + sparseBoost));
           }
 
           function domainEdges(domain) {
@@ -738,6 +1010,108 @@
               if (!map.has(down)) edges.push({ x1: c.x, y1: c.y + gridSize, x2: c.x + gridSize, y2: c.y + gridSize, k: `d-${c.k}` });
             });
             return edges;
+          }
+
+          function domainLabel(domain) {
+            const cells = domainCells(domain);
+            if (cells.length === 0) return null;
+            const sx = cells.reduce((acc, c) => acc + c.x, 0);
+            const sy = cells.reduce((acc, c) => acc + c.y, 0);
+            return { x: sx / cells.length + gridSize / 2, y: sy / cells.length + gridSize / 2 };
+          }
+
+          function estimateLabelRect(cx, cy, text, fontSize) {
+            const raw = String(text || '');
+            const width = Math.max(fontSize * 1.2, raw.length * fontSize * 0.62 + 6);
+            const height = fontSize + 6;
+            return { x: cx - width / 2, y: cy - height / 2, w: width, h: height };
+          }
+
+          function rectOverlap(a, b, pad) {
+            const p = pad || 0;
+            return !(
+              a.x + a.w + p < b.x ||
+              b.x + b.w + p < a.x ||
+              a.y + a.h + p < b.y ||
+              b.y + b.h + p < a.y
+            );
+          }
+
+          function rectNearPoint(rect, point, pad) {
+            const p = pad || 0;
+            return (
+              point.x >= rect.x - p &&
+              point.x <= rect.x + rect.w + p &&
+              point.y >= rect.y - p &&
+              point.y <= rect.y + rect.h + p
+            );
+          }
+
+          function placeLabel(name, anchor, fontSize, placedRects, avoidPoints) {
+            const offsets = [
+              { x: 0, y: 0 },
+              { x: 0, y: -18 },
+              { x: 0, y: 18 },
+              { x: 20, y: 0 },
+              { x: -20, y: 0 },
+              { x: 16, y: -14 },
+              { x: -16, y: -14 },
+              { x: 16, y: 14 },
+              { x: -16, y: 14 },
+              { x: 28, y: -8 },
+              { x: -28, y: -8 },
+            ];
+
+            const points = avoidPoints || [];
+            for (let i = 0; i < offsets.length; i++) {
+              const cx = anchor.x + offsets[i].x;
+              const cy = anchor.y + offsets[i].y;
+              const rect = estimateLabelRect(cx, cy, name, fontSize);
+              const overlapLabel = placedRects.some((r) => rectOverlap(rect, r, 4));
+              if (overlapLabel) continue;
+              const overlapPoint = points.some((p) => rectNearPoint(rect, p, 6));
+              if (overlapPoint) continue;
+              placedRects.push(rect);
+              return { x: cx, y: cy };
+            }
+
+            const fallback = estimateLabelRect(anchor.x, anchor.y, name, fontSize);
+            placedRects.push(fallback);
+            return { x: anchor.x, y: anchor.y };
+          }
+
+          function buildLabelLayout() {
+            const placed = [];
+            const starPoints = systems.map((s) => ({ x: s.x, y: s.y }));
+
+            const systemItems = systems.map((s) => {
+              const pos = placeLabel(s.name, { x: s.x, y: s.y }, 10, placed, starPoints);
+              return { id: s.id, name: s.name, x: pos.x, y: pos.y };
+            });
+
+            const constellationItems = constellations
+              .map((c) => {
+                const center = constellationLabel(c);
+                if (!center) return null;
+                const pos = placeLabel(c.name, center, 13, placed, starPoints);
+                return { id: c.id, name: c.name, x: pos.x, y: pos.y };
+              })
+              .filter(Boolean);
+
+            const domainItems = domains
+              .map((d) => {
+                const center = domainLabel(d);
+                if (!center) return null;
+                const pos = placeLabel(d.name, center, 16, placed, starPoints);
+                return { id: d.id, name: d.name, x: pos.x, y: pos.y };
+              })
+              .filter(Boolean);
+
+            return {
+              systems: systemItems,
+              constellations: constellationItems,
+              domains: domainItems,
+            };
           }
 
           function applyZoom(value) {
@@ -801,9 +1175,12 @@
               selectionRect.value = { x: world.x, y: world.y, w: 0, h: 0 };
             }
 
-            if (hit && mode.value !== 'link' && mode.value !== 'selectConstellations') {
+            if (hit && mode.value !== 'link' && mode.value !== 'selectConstellations' && mode.value !== 'selectSystems') {
               draggingSystemId = hit.id;
-              selectedSystemId.value = hit.id;
+              if (!selectedSystemIds.includes(hit.id)) {
+                selectedSystemIds.push(hit.id);
+              }
+              activeSystemId.value = hit.id;
             }
           }
 
@@ -872,7 +1249,10 @@
             } else if (!hasMoved) {
               if (mode.value === 'link') {
                 if (hit) {
-                  selectedSystemId.value = hit.id;
+                  if (!selectedSystemIds.includes(hit.id)) {
+                    selectedSystemIds.push(hit.id);
+                  }
+                  activeSystemId.value = hit.id;
                   if (!linkFromId) {
                     linkFromId = hit.id;
                   } else if (linkFromId !== hit.id) {
@@ -897,7 +1277,6 @@
                 }
               } else if (mode.value === 'selectSystems') {
                 if (hit) {
-                  selectedSystemId.value = hit.id;
                   toggleSystemSelection(hit.id);
                 }
               } else if (mode.value === 'create') {
@@ -905,7 +1284,10 @@
                   const snapped = snapToGrid(world.x, world.y);
                   if (snapped.x >= 0 && snapped.y >= 0) openSystemDialog(snapped.x, snapped.y);
                 } else {
-                  selectedSystemId.value = hit.id;
+                  if (!selectedSystemIds.includes(hit.id)) {
+                    selectedSystemIds.push(hit.id);
+                  }
+                  activeSystemId.value = hit.id;
                 }
               }
             }
@@ -933,6 +1315,8 @@
             zoomPercent,
             ZOOM_MIN,
             ZOOM_MAX,
+            canToggleGate,
+            hasGateBetweenSelected,
             mode,
             modeLabel,
             systems,
@@ -942,19 +1326,25 @@
             selectedSystem,
             selectedConstellation,
             selectedDomain,
-            selectedSystemId,
+            activeSystemId,
             selectedSystemIds,
-            selectedConstellationId,
+            activeConstellationId,
             selectedConstellationIds,
             selectedDomainId,
             gridColumnCount,
             gridRowCount,
             viewTransform,
+            labelLayout,
             svgRef,
             systemById,
             constellationCells,
+            constellationLinks,
+            constellationLabel,
             domainCells,
+            domainBufferCells,
+            domainCellOpacity,
             domainEdges,
+            domainLabel,
             setMode,
             pickSystem,
             toggleSystemSelectionFromList,
@@ -964,6 +1354,7 @@
             removeSystem,
             openConstellationDialog,
             openDomainDialog,
+            toggleGateBetweenSelected,
             onSecurityChange,
             emitState,
             save,
