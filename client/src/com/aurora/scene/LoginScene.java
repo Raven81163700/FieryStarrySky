@@ -109,7 +109,7 @@ public final class LoginScene extends Canvas implements Scene, CommandListener {
             return;
         }
 
-        int action = getGameAction(keyCode);
+        int action = resolveAction(keyCode);
         int maxFocus = (mode == MODE_LOGIN) ? 3 : 4;
 
         if (action == UP) {
@@ -125,6 +125,30 @@ public final class LoginScene extends Canvas implements Scene, CommandListener {
         if (action == FIRE) {
             activateFocus();
         }
+    }
+
+    private int resolveAction(int keyCode) {
+        int action = 0;
+        try {
+            action = getGameAction(keyCode);
+        } catch (IllegalArgumentException e) {
+            action = 0;
+        }
+
+        if (action != 0) {
+            return action;
+        }
+
+        if (keyCode == KEY_NUM2) {
+            return UP;
+        }
+        if (keyCode == KEY_NUM8) {
+            return DOWN;
+        }
+        if (keyCode == KEY_NUM5) {
+            return FIRE;
+        }
+        return 0;
     }
 
     protected void pointerPressed(int x, int y) {

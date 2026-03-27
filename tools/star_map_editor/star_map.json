@@ -1,0 +1,17 @@
+{
+  "systems": [
+    {
+      "id": 1,
+      "name": "星系-1",
+      "x": 624,
+      "y": 48,
+      "security": 0.8,
+      "controller": "",
+      "description": ""
+    }
+  ],
+  "links": [],
+  "bodies": [],
+  "constellations": [],
+  "domains": []
+}

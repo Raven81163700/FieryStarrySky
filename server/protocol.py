@@ -22,6 +22,11 @@ from config import FIELD_SEPARATOR, MSG_SEPARATOR, ENCODING, MAX_MSG_LEN
 CMD_REGISTER = "REGISTER"
 CMD_LOGIN    = "LOGIN"
 CMD_PING     = "PING"
+CMD_LIST_CHARS = "LIST_CHARS"
+CMD_CREATE_CHAR = "CREATE_CHAR"
+CMD_DELETE_CHAR = "DELETE_CHAR"
+CMD_GET_STAR_MAP = "GET_STAR_MAP"
+CMD_GET_SYSTEM_BODIES = "GET_SYSTEM_BODIES"
 
 # 服务端回复
 CMD_OK       = "OK"
@@ -70,3 +75,16 @@ def make_err(cmd: str, reason: str) -> bytes:
 
 def make_ping_ack() -> bytes:
     return (CMD_PING_ACK + MSG_SEPARATOR).encode(ENCODING)
+
+# 方便构造列表响应（简单扁平格式）
+def make_list_chars(chars) -> bytes:
+    """
+    chars: iterable of dict with keys id,name,gender,background_path,character_path,preview_path
+    返回: OK|LIST_CHARS|N|id|name|gender|background|character|preview|...\n
+    注意: 字段中不应包含分隔符
+    """
+    parts = [CMD_OK, CMD_LIST_CHARS, str(len(chars))]
+    for c in chars:
+        # include preview_base64 if provided (may be empty string)
+        parts += [str(c.get('id','')), c.get('name',''), str(c.get('gender','')), c.get('background_path',''), c.get('character_path',''), c.get('preview_base64','')]
+    return (FIELD_SEPARATOR.join(parts) + MSG_SEPARATOR).encode(ENCODING)

@@ -37,7 +37,7 @@ public class AuroraGameMIDlet extends MIDlet {
             int serverPort = readAppPropertyInt(PROP_SERVER_PORT, DEFAULT_SERVER_PORT);
             AuthService authService = new AuthService(serverHost, serverPort);
             PingService pingService = new PingService(serverHost, serverPort);
-            sceneManager = new SceneManager(this, display, authService, pingService);
+            sceneManager = new SceneManager(this, display, authService, pingService, serverHost, serverPort);
         }
         sceneManager.resume();
     }

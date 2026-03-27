@@ -116,6 +116,51 @@ public final class ImageTransformUtils {
         return rotate(scale(src, targetWidth, targetHeight), angleDegrees);
     }
 
+    public static Image composeLayers(Image background, Image foreground, int targetWidth, int targetHeight) {
+        if (background == null || foreground == null) {
+            throw new IllegalArgumentException("image layer is null");
+        }
+        Image bg = scale(background, targetWidth, targetHeight);
+        Image fg = scale(foreground, targetWidth, targetHeight);
+
+        int[] bgRgb = new int[targetWidth * targetHeight];
+        int[] fgRgb = new int[targetWidth * targetHeight];
+        int[] out = new int[targetWidth * targetHeight];
+
+        bg.getRGB(bgRgb, 0, targetWidth, 0, 0, targetWidth, targetHeight);
+        fg.getRGB(fgRgb, 0, targetWidth, 0, 0, targetWidth, targetHeight);
+
+        int i;
+        for (i = 0; i < out.length; i++) {
+            int f = fgRgb[i];
+            int fa = (f >>> 24) & 0xFF;
+            if (fa == 0) {
+                out[i] = bgRgb[i];
+                continue;
+            }
+            if (fa == 255) {
+                out[i] = f;
+                continue;
+            }
+
+            int b = bgRgb[i];
+            int br = (b >>> 16) & 0xFF;
+            int bgc = (b >>> 8) & 0xFF;
+            int bb = b & 0xFF;
+
+            int fr = (f >>> 16) & 0xFF;
+            int fgc = (f >>> 8) & 0xFF;
+            int fb = f & 0xFF;
+
+            int outR = (fr * fa + br * (255 - fa)) / 255;
+            int outG = (fgc * fa + bgc * (255 - fa)) / 255;
+            int outB = (fb * fa + bb * (255 - fa)) / 255;
+            out[i] = (0xFF << 24) | (outR << 16) | (outG << 8) | outB;
+        }
+
+        return Image.createRGBImage(out, targetWidth, targetHeight, true);
+    }
+
     private static Image rotateRightAngle(Image src, int normalizedAngle) {
         int srcWidth = src.getWidth();
         int srcHeight = src.getHeight();

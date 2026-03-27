@@ -29,7 +29,7 @@ public final class DrawUtils {
                                  String label, String value, boolean focused) {
         g.setColor(0xB8C6DB);
         g.setFont(Font.getDefaultFont());
-        g.drawString(label, x, y - 12, Graphics.TOP | Graphics.LEFT);
+        g.drawString(label, x, y - 16, Graphics.TOP | Graphics.LEFT);
 
         g.setColor(focused ? 0x66B8FF : 0x5C6A84);
         g.drawRect(x, y, w, h);

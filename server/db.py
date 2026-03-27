@@ -34,20 +34,34 @@ def init_db():
                 last_login  TEXT
             )
         """)
-        # 角色表（预留，当前仅建表）
+        # 角色表：包含资源路径与展示图路径
         c.execute("""
             CREATE TABLE IF NOT EXISTS characters (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id  INTEGER NOT NULL REFERENCES accounts(id),
-                name        TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-                level       INTEGER NOT NULL DEFAULT 1,
-                exp         INTEGER NOT NULL DEFAULT 0,
-                map_id      INTEGER NOT NULL DEFAULT 1,
-                x           INTEGER NOT NULL DEFAULT 0,
-                y           INTEGER NOT NULL DEFAULT 0,
-                created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id      INTEGER NOT NULL REFERENCES accounts(id),
+                name            TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+                gender          INTEGER NOT NULL DEFAULT 0,
+                background_path TEXT,
+                character_path  TEXT,
+                preview_path    TEXT,
+                level           INTEGER NOT NULL DEFAULT 1,
+                exp             INTEGER NOT NULL DEFAULT 0,
+                map_id          INTEGER NOT NULL DEFAULT 1,
+                x               INTEGER NOT NULL DEFAULT 0,
+                y               INTEGER NOT NULL DEFAULT 0,
+                created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        # 对于已有老表，尝试添加新列以兼容升级（忽略已存在的错误）
+        try:
+            c.execute("ALTER TABLE characters ADD COLUMN gender INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        for col in ("background_path", "character_path", "preview_path"):
+            try:
+                c.execute("ALTER TABLE characters ADD COLUMN %s TEXT" % col)
+            except Exception:
+                pass
         conn.commit()
         logger.info("数据库初始化完成: %s", DB_PATH)
     finally:
@@ -165,5 +179,60 @@ def login(username: str, password: str):
         conn.commit()
         logger.info("账号登录成功: %s (id=%d)", username, row["id"])
         return True, row["id"]
+    finally:
+        conn.close()
+
+
+# ─────────────────────────────────────────────────
+#  角色相关操作
+# ─────────────────────────────────────────────────
+
+def create_character(account_id: int, name: str, gender: int, background_path: str, character_path: str, preview_path: str = None):
+    """
+    创建角色并返回 (True, char_id) 或 (False, 错误描述)
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO characters (account_id, name, gender, background_path, character_path, preview_path) VALUES (?, ?, ?, ?, ?, ?)",
+            (account_id, name, gender, background_path, character_path, preview_path)
+        )
+        conn.commit()
+        row = cur.execute("SELECT id FROM characters WHERE rowid = last_insert_rowid()").fetchone()
+        return True, row[0]
+    except sqlite3.IntegrityError:
+        return False, "角色名已存在"
+    finally:
+        conn.close()
+
+
+def list_characters(account_id: int):
+    """返回角色 dict 列表"""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, name, gender, background_path, character_path, preview_path, created_at FROM characters WHERE account_id = ? ORDER BY id",
+            (account_id,)
+        ).fetchall()
+        out = []
+        for r in rows:
+            out.append({
+                'id': r['id'], 'name': r['name'], 'gender': r['gender'],
+                'background_path': r['background_path'] or '', 'character_path': r['character_path'] or '',
+                'preview_path': r['preview_path'] or '', 'created_at': r['created_at']
+            })
+        return out
+    finally:
+        conn.close()
+
+
+def delete_character(account_id: int, char_id: int) -> bool:
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM characters WHERE account_id = ? AND id = ?", (account_id, char_id))
+        conn.commit()
+        return cur.rowcount > 0
     finally:
         conn.close()

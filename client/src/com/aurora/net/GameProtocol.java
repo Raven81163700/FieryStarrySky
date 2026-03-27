@@ -8,6 +8,11 @@ public final class GameProtocol {
     public static final String CMD_LOGIN = "LOGIN";
     public static final String CMD_REGISTER = "REGISTER";
     public static final String CMD_PING = "PING";
+    public static final String CMD_LIST_CHARS = "LIST_CHARS";
+    public static final String CMD_CREATE_CHAR = "CREATE_CHAR";
+    public static final String CMD_DELETE_CHAR = "DELETE_CHAR";
+    public static final String CMD_GET_STAR_MAP = "GET_STAR_MAP";
+    public static final String CMD_GET_SYSTEM_BODIES = "GET_SYSTEM_BODIES";
 
     public static final String CMD_OK = "OK";
     public static final String CMD_ERR = "ERR";
@@ -26,6 +31,26 @@ public final class GameProtocol {
 
     public static String buildPing() {
         return CMD_PING + MSG_SEPARATOR;
+    }
+
+    public static String buildListChars(int accountId) {
+        return CMD_LIST_CHARS + FIELD_SEPARATOR + accountId + MSG_SEPARATOR;
+    }
+
+    public static String buildCreateChar(int accountId, String name, int gender, int backgroundId, int characterId) {
+        return CMD_CREATE_CHAR + FIELD_SEPARATOR + accountId + FIELD_SEPARATOR + name + FIELD_SEPARATOR + gender + FIELD_SEPARATOR + backgroundId + FIELD_SEPARATOR + characterId + MSG_SEPARATOR;
+    }
+
+    public static String buildDeleteChar(int accountId, int charId) {
+        return CMD_DELETE_CHAR + FIELD_SEPARATOR + accountId + FIELD_SEPARATOR + charId + MSG_SEPARATOR;
+    }
+
+    public static String buildGetStarMap() {
+        return CMD_GET_STAR_MAP + MSG_SEPARATOR;
+    }
+
+    public static String buildGetSystemBodies(int systemId) {
+        return CMD_GET_SYSTEM_BODIES + FIELD_SEPARATOR + systemId + MSG_SEPARATOR;
     }
 
     public static String[] splitFields(String line) {
