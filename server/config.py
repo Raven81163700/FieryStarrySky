@@ -12,6 +12,11 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH  = os.path.join(BASE_DIR, "data", "aurora.db")
 
+# ── 星图配置 ──────────────────────────────────────
+# 优先从该配置文件加载星图数据（systems/links/bodies/constellations/domains）。
+# 可通过环境变量 AURORA_STAR_MAP_CONFIG 覆盖。
+STAR_MAP_CONFIG_PATH = os.path.join(BASE_DIR, "data", "star_map_config.json")
+
 # ── 协议 ──────────────────────────────────────────
 ENCODING        = "utf-8"
 MSG_SEPARATOR   = "\n"          # 消息结束符

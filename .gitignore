@@ -14,3 +14,9 @@ client/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Python virtual environments and cache
+.venv/
+**/.venv/
+__pycache__/
+*.pyc

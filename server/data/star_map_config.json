@@ -5,486 +5,378 @@
       "name": "维拉希首星",
       "x": 696,
       "y": 408,
-      "security": 1,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 1
     },
     {
       "id": 2,
       "name": "新都",
       "x": 648,
       "y": 432,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 3,
       "name": "莱纳莱多",
       "x": 720,
       "y": 456,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 4,
       "name": "加加林格勒",
       "x": 816,
       "y": 408,
-      "security": 1,
-      "controller": "第四国际加盟领自治委员会-加加林格勒人民共和国",
-      "description": ""
+      "security": 1
     },
     {
       "id": 5,
       "name": "Glof-07",
       "x": 600,
       "y": 408,
-      "security": 0.7,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 6,
       "name": "Peter-11",
       "x": 696,
       "y": 480,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 7,
       "name": "Alpha-21",
       "x": 600,
       "y": 480,
-      "security": 0.6,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 8,
       "name": "Beta-06",
       "x": 552,
       "y": 336,
-      "security": 0.5,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 9,
       "name": "Hotel-15",
       "x": 696,
       "y": 336,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 10,
       "name": "怒海",
       "x": 600,
       "y": 528,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 11,
       "name": "神农",
       "x": 672,
       "y": 504,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 12,
       "name": "谷神",
       "x": 768,
       "y": 504,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 13,
       "name": "千户",
       "x": 552,
       "y": 456,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 14,
       "name": "利埃那多",
       "x": 672,
       "y": 552,
-      "security": 0.6,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 15,
       "name": "卡勒莱特",
       "x": 744,
       "y": 360,
-      "security": 0.9,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 16,
       "name": "通途IV",
       "x": 792,
       "y": 312,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 17,
       "name": "卡扎那多",
       "x": 768,
       "y": 456,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 18,
       "name": "利埃",
       "x": 888,
       "y": 432,
-      "security": 0.7,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 19,
       "name": "塔林",
       "x": 840,
       "y": 480,
-      "security": 0.6,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 20,
       "name": "Zeta-7",
       "x": 912,
       "y": 312,
-      "security": 0.5,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 21,
       "name": "萨兰",
       "x": 840,
       "y": 168,
-      "security": 0.4,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 22,
       "name": "巴德",
       "x": 1032,
       "y": 216,
-      "security": 0.3,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 23,
       "name": "塔克",
       "x": 936,
       "y": 384,
-      "security": 0.3,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 24,
       "name": "乌兰班克",
       "x": 720,
       "y": 216,
-      "security": 0.4,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 25,
       "name": "太子港",
       "x": 552,
       "y": 240,
-      "security": 0.8,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 3
     },
     {
       "id": 26,
       "name": "帕克特克",
       "x": 984,
       "y": 96,
-      "security": 0.3,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 28,
       "name": "卡文诺夫-开发区",
       "x": 1080,
       "y": 120,
-      "security": 0.7,
-      "controller": "第四国际自治委员会-卡文诺夫托管领",
-      "description": ""
+      "security": 3
     },
     {
       "id": 29,
       "name": "森科",
       "x": 960,
       "y": 240,
-      "security": 0.6,
-      "controller": "第四国际自治委员会-卡文诺夫托管领",
-      "description": ""
+      "security": 2
     },
     {
       "id": 30,
       "name": "绝径",
       "x": 1128,
       "y": 192,
-      "security": 0.1,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 31,
       "name": "F8U-Z1",
       "x": 888,
       "y": 72,
-      "security": 0,
-      "controller": "",
-      "description": ""
+      "security": 2
     },
     {
       "id": 32,
       "name": "努克河口",
       "x": 816,
       "y": 120,
-      "security": 0.1,
-      "controller": "努克-克尔克 殖民开发有限公司",
-      "description": ""
+      "security": 2
     },
     {
       "id": 33,
       "name": "K7-I9P",
       "x": 768,
       "y": 48,
-      "security": 0,
-      "controller": "",
-      "description": ""
+      "security": 2
     },
     {
       "id": 34,
       "name": "L0-X6D",
       "x": 696,
       "y": 96,
-      "security": 0,
-      "controller": "",
-      "description": ""
+      "security": 2
     },
     {
       "id": 35,
       "name": "GU8-08",
       "x": 576,
       "y": 168,
-      "security": -0.1,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 36,
       "name": "L9K-OJ",
       "x": 600,
       "y": 72,
-      "security": -0.1,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 37,
       "name": "奥汗",
       "x": 768,
       "y": 240,
-      "security": 0.5,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 38,
       "name": "阿尔特斯兰克",
       "x": 1056,
       "y": 312,
-      "security": 0.6,
-      "controller": "维拉希联邦合众国",
-      "description": ""
+      "security": 2
     },
     {
       "id": 39,
       "name": "燕",
       "x": 984,
       "y": 456,
-      "security": 0.7,
-      "controller": "",
-      "description": ""
+      "security": 3
     },
     {
       "id": 40,
       "name": "莱西谷地",
       "x": 1032,
       "y": 384,
-      "security": 0.3,
-      "controller": "",
-      "description": ""
+      "security": 2
     },
     {
       "id": 41,
       "name": "谷口",
       "x": 672,
       "y": 48,
-      "security": -0.1,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 42,
       "name": "L9-U8T",
       "x": 480,
       "y": 24,
-      "security": -0.2,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 43,
       "name": "N8-6YU",
       "x": 456,
       "y": 144,
-      "security": -0.3,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 44,
       "name": "8T-67U",
       "x": 360,
       "y": 24,
-      "security": -0.3,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 45,
       "name": "LK7-OO",
       "x": 312,
       "y": 144,
-      "security": -0.4,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 46,
       "name": "MM-O7U",
       "x": 528,
       "y": 72,
-      "security": -0.5,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 47,
       "name": "7P-I7Y",
       "x": 264,
       "y": 48,
-      "security": -0.5,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 48,
       "name": "HO-78G",
       "x": 384,
       "y": 240,
-      "security": -0.5,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 49,
       "name": "KP8-F5",
       "x": 240,
       "y": 312,
-      "security": -0.6,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 50,
       "name": "7L-9UI",
       "x": 336,
       "y": 336,
-      "security": -0.7,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 51,
       "name": "莫尼亚点",
       "x": 24,
       "y": 24,
-      "security": -1,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 52,
       "name": "Z5O-UU",
       "x": 144,
       "y": 96,
-      "security": -0.9,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 53,
       "name": "9J-L8B",
       "x": 168,
       "y": 216,
-      "security": -0.8,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 54,
       "name": "L8-00T",
       "x": 216,
       "y": 120,
-      "security": -0.8,
-      "controller": "",
-      "description": ""
+      "security": 1
     },
     {
       "id": 55,
       "name": "CU9-L6",
       "x": 264,
       "y": 240,
-      "security": -0.7,
-      "controller": "",
-      "description": ""
+      "security": 1
     }
   ],
   "links": [
@@ -503,6 +395,12 @@
     {
       "from_id": 4,
       "to_id": 1,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 4,
+      "to_id": 18,
       "link_type": 2,
       "cost": 1
     },
@@ -526,25 +424,25 @@
     },
     {
       "from_id": 9,
+      "to_id": 1,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 9,
       "to_id": 5,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 9,
-      "to_id": 1,
+      "to_id": 25,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 10,
       "to_id": 2,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 13,
-      "to_id": 10,
       "link_type": 2,
       "cost": 1
     },
@@ -561,6 +459,12 @@
       "cost": 1
     },
     {
+      "from_id": 13,
+      "to_id": 10,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
       "from_id": 14,
       "to_id": 10,
       "link_type": 2,
@@ -573,8 +477,8 @@
       "cost": 1
     },
     {
-      "from_id": 19,
-      "to_id": 17,
+      "from_id": 15,
+      "to_id": 4,
       "link_type": 2,
       "cost": 1
     },
@@ -586,25 +490,25 @@
     },
     {
       "from_id": 18,
-      "to_id": 19,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 18,
       "to_id": 16,
       "link_type": 2,
       "cost": 1
     },
     {
-      "from_id": 4,
-      "to_id": 18,
+      "from_id": 18,
+      "to_id": 19,
       "link_type": 2,
       "cost": 1
     },
     {
-      "from_id": 15,
-      "to_id": 4,
+      "from_id": 19,
+      "to_id": 17,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 20,
+      "to_id": 16,
       "link_type": 2,
       "cost": 1
     },
@@ -621,8 +525,14 @@
       "cost": 1
     },
     {
-      "from_id": 20,
-      "to_id": 16,
+      "from_id": 21,
+      "to_id": 24,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 22,
+      "to_id": 26,
       "link_type": 2,
       "cost": 1
     },
@@ -633,26 +543,8 @@
       "cost": 1
     },
     {
-      "from_id": 21,
-      "to_id": 24,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 9,
-      "to_id": 25,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
       "from_id": 25,
       "to_id": 24,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 22,
-      "to_id": 26,
       "link_type": 2,
       "cost": 1
     },
@@ -694,13 +586,13 @@
     },
     {
       "from_id": 34,
-      "to_id": 33,
+      "to_id": 32,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 34,
-      "to_id": 32,
+      "to_id": 33,
       "link_type": 2,
       "cost": 1
     },
@@ -718,12 +610,6 @@
     },
     {
       "from_id": 38,
-      "to_id": 37,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 40,
       "to_id": 37,
       "link_type": 2,
       "cost": 1
@@ -747,14 +633,20 @@
       "cost": 1
     },
     {
-      "from_id": 41,
-      "to_id": 36,
+      "from_id": 40,
+      "to_id": 37,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 41,
       "to_id": 34,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 41,
+      "to_id": 36,
       "link_type": 2,
       "cost": 1
     },
@@ -772,13 +664,13 @@
     },
     {
       "from_id": 44,
-      "to_id": 43,
+      "to_id": 42,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 44,
-      "to_id": 42,
+      "to_id": 43,
       "link_type": 2,
       "cost": 1
     },
@@ -790,25 +682,25 @@
     },
     {
       "from_id": 46,
-      "to_id": 45,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 46,
       "to_id": 43,
       "link_type": 2,
       "cost": 1
     },
     {
-      "from_id": 48,
-      "to_id": 47,
+      "from_id": 46,
+      "to_id": 45,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 47,
       "to_id": 46,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 48,
+      "to_id": 47,
       "link_type": 2,
       "cost": 1
     },
@@ -831,14 +723,8 @@
       "cost": 1
     },
     {
-      "from_id": 55,
-      "to_id": 53,
-      "link_type": 2,
-      "cost": 1
-    },
-    {
-      "from_id": 54,
-      "to_id": 53,
+      "from_id": 52,
+      "to_id": 51,
       "link_type": 2,
       "cost": 1
     },
@@ -849,14 +735,20 @@
       "cost": 1
     },
     {
-      "from_id": 52,
-      "to_id": 51,
+      "from_id": 54,
+      "to_id": 53,
       "link_type": 2,
       "cost": 1
     },
     {
       "from_id": 55,
       "to_id": 48,
+      "link_type": 2,
+      "cost": 1
+    },
+    {
+      "from_id": 55,
+      "to_id": 53,
       "link_type": 2,
       "cost": 1
     }

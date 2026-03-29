@@ -1,13 +1,29 @@
 from flask import Flask, request, make_response, send_from_directory, jsonify
-from flask_socketio import SocketIO, emit
 import io, json, os
+
+# try to use eventlet when available for proper WebSocket support
+EVENTLET_AVAILABLE = False
+try:
+    import eventlet
+    # monkey patch stdlib for cooperative IO
+    eventlet.monkey_patch()
+    EVENTLET_AVAILABLE = True
+except Exception:
+    EVENTLET_AVAILABLE = False
+
+from flask_socketio import SocketIO, emit
 
 HERE = os.path.dirname(__file__)
 DATA_FILE = os.path.join(HERE, 'star_map.json')
 
-app = Flask(__name__, static_folder='static', template_folder='static')
+app = Flask(__name__, static_folder='static', static_url_path='', template_folder='static')
 app.config['SECRET_KEY'] = 'dev'
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
+
+# prefer eventlet if available for websocket support; enable logging
+if EVENTLET_AVAILABLE:
+    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet', logger=True, engineio_logger=True)
+else:
+    socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading', logger=True, engineio_logger=True)
 
 
 def default_state():
@@ -39,8 +55,16 @@ def load_state():
 
 def save_state(data):
     state = normalize_state(data)
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(state, f, indent=2, ensure_ascii=False)
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        sys_count = len(state.get('systems', []))
+        con_count = len(state.get('constellations', []))
+        dom_count = len(state.get('domains', []))
+        print(f'[save] OK — systems={sys_count} constellations={con_count} domains={dom_count}')
+    except Exception as e:
+        print(f'[save] ERROR: {e}')
+        raise
     return state
 
 
@@ -77,25 +101,42 @@ def save_to_disk():
 
 @socketio.on('connect')
 def on_connect():
+    print(f'[connect] client connected')
     emit('state', load_state())
+
+
+@socketio.on('disconnect')
+def on_disconnect():
+    print(f'[disconnect] client disconnected')
 
 
 @socketio.on('request_state')
 def on_request_state():
+    print('[request_state] sending current state')
     emit('state', load_state())
 
 
 @socketio.on('update_state')
 def on_update_state(data):
-    state = save_state(data)
-    emit('state', state, broadcast=True, include_self=False)
+    print(f'[update_state] received, systems={len(data.get("systems", [])) if isinstance(data, dict) else "?"}')
+    try:
+        state = save_state(data)
+        emit('state', state, broadcast=True, include_self=False)
+    except Exception as e:
+        print(f'[update_state] save failed: {e}')
+        emit('save_error', {'message': str(e)})
 
 
 @socketio.on('save')
 def on_socket_save(data):
-    state = save_state(data)
-    emit('state', state, broadcast=True, include_self=False)
-    emit('saved', {'status': 'ok'}, broadcast=True)
+    print(f'[save] received explicit save')
+    try:
+        state = save_state(data)
+        emit('state', state, broadcast=True, include_self=False)
+        emit('saved', {'status': 'ok'})
+    except Exception as e:
+        print(f'[save] failed: {e}')
+        emit('save_error', {'message': str(e)})
 
 
 if __name__ == '__main__':

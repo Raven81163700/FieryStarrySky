@@ -85,3 +85,19 @@ characters(id, account_id, name, level, exp, map_id, x, y, created_at)
 - [ ] 玩家移动广播
 - [ ] 聊天系统
 - [ ] 战斗逻辑
+
+---
+
+## 星图配置加载（已支持）
+
+- 服务端会优先从 `server/data/star_map_config.json` 加载星图。
+- 可通过环境变量 `AURORA_STAR_MAP_CONFIG` 覆盖路径。
+- 配置格式支持字段: `systems`, `links`, `bodies`, `constellations`, `domains`。
+
+`GET_STAR_MAP` 响应现为扩展结构:
+
+- `OK|GET_STAR_MAP|S段|L段|C段|D段`
+- C 段单项: `id|name|controller|description|color|N|systemId...`
+- D 段单项: `id|name|controller|description|color|N|constellationId...`
+
+旧客户端若只读取 S/L 段，仍可兼容运行。

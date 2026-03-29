@@ -322,11 +322,16 @@ def handle_create_char(session, parts):
 def handle_get_star_map(session, parts):
     """
     客户端: GET_STAR_MAP
-    返回: OK|GET_STAR_MAP|S|id|name|x|y|security|...|L|from|to|type|cost|...
+        返回: OK|GET_STAR_MAP|S|...|L|...|C|...|D|...
+        其中:
+            C 段: id|name|controller|description|color|N|systemId...
+            D 段: id|name|controller|description|color|N|constellationId...
     """
     cmd = P.CMD_GET_STAR_MAP
     systems = star_map.all_systems()
     links = star_map.all_links()
+        constellations = star_map.all_constellations()
+        domains = star_map.all_domains()
 
     extra = [str(len(systems))]
     for s in systems:
@@ -334,6 +339,34 @@ def handle_get_star_map(session, parts):
     extra += [str(len(links))]
     for l in links:
         extra += [str(l['from_id']), str(l['to_id']), str(l['link_type']), str(l['cost'])]
+
+    extra += [str(len(constellations))]
+    for c in constellations:
+        system_ids = c.get('systemIds', [])
+        extra += [
+            str(c.get('id', 0)),
+            c.get('name', ''),
+            c.get('controller', ''),
+            c.get('description', ''),
+            c.get('color', ''),
+            str(len(system_ids)),
+        ]
+        for sid in system_ids:
+            extra += [str(sid)]
+
+    extra += [str(len(domains))]
+    for d in domains:
+        constellation_ids = d.get('constellationIds', [])
+        extra += [
+            str(d.get('id', 0)),
+            d.get('name', ''),
+            d.get('controller', ''),
+            d.get('description', ''),
+            d.get('color', ''),
+            str(len(constellation_ids)),
+        ]
+        for cid in constellation_ids:
+            extra += [str(cid)]
 
     session.send(P.make_ok(cmd, *extra))
 

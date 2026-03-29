@@ -34,9 +34,29 @@ public final class StarMapService {
         public int primary;
     }
 
+    public static final class Constellation {
+        public int id;
+        public String name;
+        public String controller;
+        public String description;
+        public String color;
+        public int[] systemIds;
+    }
+
+    public static final class Domain {
+        public int id;
+        public String name;
+        public String controller;
+        public String description;
+        public String color;
+        public int[] constellationIds;
+    }
+
     public static final class StarMapData {
         public StarSystem[] systems;
         public SystemLink[] links;
+        public Constellation[] constellations;
+        public Domain[] domains;
     }
 
     public Result getStarMap() {
@@ -91,6 +111,60 @@ public final class StarMapService {
             try { l.linkType = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("航道类型格式错误"); }
             try { l.cost = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("航道代价格式错误"); }
             data.links[i] = l;
+        }
+
+        // 兼容扩展协议: C 段（星座）和 D 段（星域）可选
+        if (idx < parts.length) {
+            int cCount = 0;
+            try { cCount = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星座数量格式错误"); }
+            data.constellations = new Constellation[cCount];
+            for (i = 0; i < cCount; i++) {
+                if (idx + 5 >= parts.length) return Result.fail("星座字段不足");
+                Constellation c = new Constellation();
+                try { c.id = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星座ID格式错误"); }
+                c.name = parts[idx++];
+                c.controller = parts[idx++];
+                c.description = parts[idx++];
+                c.color = parts[idx++];
+                int nSystems = 0;
+                try { nSystems = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星座系统数量格式错误"); }
+                c.systemIds = new int[nSystems];
+                int j;
+                for (j = 0; j < nSystems; j++) {
+                    if (idx >= parts.length) return Result.fail("星座系统ID字段不足");
+                    try { c.systemIds[j] = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星座系统ID格式错误"); }
+                }
+                data.constellations[i] = c;
+            }
+
+            if (idx < parts.length) {
+                int dCount = 0;
+                try { dCount = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星域数量格式错误"); }
+                data.domains = new Domain[dCount];
+                for (i = 0; i < dCount; i++) {
+                    if (idx + 5 >= parts.length) return Result.fail("星域字段不足");
+                    Domain d = new Domain();
+                    try { d.id = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星域ID格式错误"); }
+                    d.name = parts[idx++];
+                    d.controller = parts[idx++];
+                    d.description = parts[idx++];
+                    d.color = parts[idx++];
+                    int nConstellations = 0;
+                    try { nConstellations = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星域星座数量格式错误"); }
+                    d.constellationIds = new int[nConstellations];
+                    int j;
+                    for (j = 0; j < nConstellations; j++) {
+                        if (idx >= parts.length) return Result.fail("星域星座ID字段不足");
+                        try { d.constellationIds[j] = Integer.parseInt(parts[idx++]); } catch (Exception e) { return Result.fail("星域星座ID格式错误"); }
+                    }
+                    data.domains[i] = d;
+                }
+            } else {
+                data.domains = new Domain[0];
+            }
+        } else {
+            data.constellations = new Constellation[0];
+            data.domains = new Domain[0];
         }
 
         return Result.ok(data);
